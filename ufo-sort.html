@@ -1,0 +1,542 @@
+<title>UFO 泡泡排序</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one phone-width console column — HUD strip, canvas stage, two big action keys, live code panel. Single dark "night sky" world on purpose. */
+:root{
+  --space:#0d0b24;
+  --deck:#17143a;
+  --deck-2:#211d4d;
+  --line:#3a3570;
+  --ink:#ece9ff;
+  --muted:#9d97cf;
+  --beam:#5ef2ff;
+  --cmp:#ffb84d;
+  --alien:#9be86a;
+  --ok:#4ade80;
+  --bad:#ff6b8b;
+  --f-display:"Chakra Petch","PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-code:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--space);color:var(--ink);font-family:var(--f-display);
+  background-image:radial-gradient(120% 60% at 50% 0%,#241d5c 0%,transparent 60%);}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px 28px;display:flex;flex-direction:column;gap:12px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:1.55rem;letter-spacing:.04em;line-height:1.1;text-wrap:balance}
+h1 small{display:block;font-size:.72rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-weight:500;margin-bottom:2px}
+.cx{font-family:var(--f-code);font-size:.72rem;display:flex;gap:6px}
+.cx span{border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--muted)}
+.cx b{color:var(--beam);font-weight:600}
+.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.hud div{background:var(--deck);border:1px solid var(--line);border-radius:10px;padding:6px 10px;min-width:0}
+.hud label{display:block;font-size:.62rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.hud output{font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums}
+#energy{display:flex;gap:4px;padding-top:6px}
+#energy i{width:14px;height:10px;border-radius:3px;background:var(--alien);box-shadow:0 0 8px var(--alien)}
+#energy i.off{background:var(--line);box-shadow:none}
+.stage{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#090720}
+canvas{display:block;width:100%;aspect-ratio:720/470;max-width:100%}
+.bubble{position:absolute;left:50%;top:10px;transform:translateX(-50%);max-width:78%;background:var(--ink);color:var(--space);
+  font-size:.86rem;font-weight:700;padding:6px 12px;border-radius:12px;text-align:center;transition:opacity .2s;pointer-events:none}
+.bubble:empty{opacity:0}
+.timer{position:absolute;left:0;bottom:0;height:4px;background:var(--cmp);width:0}
+.status{font-family:var(--f-code);text-align:center;color:var(--cmp);font-size:.95rem;min-height:1.4em}
+.keys{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.keys button{font:inherit;font-weight:700;font-size:1.1rem;padding:14px 10px;border-radius:14px;cursor:pointer;
+  border:2px solid var(--line);background:var(--deck-2);color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;
+  transition:transform .08s,border-color .15s,box-shadow .15s}
+.keys button small{font-size:.68rem;color:var(--muted);font-weight:500;letter-spacing:.06em}
+.keys button:not(:disabled):hover{transform:translateY(-1px)}
+.keys button:active{transform:translateY(1px)}
+#btnSwap:not(:disabled){border-color:var(--beam);box-shadow:0 0 18px -6px var(--beam)}
+#btnKeep:not(:disabled){border-color:var(--muted)}
+.keys button:disabled{opacity:.4;cursor:default}
+button:focus-visible{outline:3px solid var(--cmp);outline-offset:2px}
+.code{background:var(--deck);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+.code .vars{font-family:var(--f-code);font-size:.72rem;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap}
+.code .vars b{color:var(--ink);font-weight:600}
+.code pre{margin:0;padding:8px 0;font-family:var(--f-code);font-size:.78rem;line-height:1.55}
+.code .ln{display:block;padding:0 12px;white-space:pre;border-left:3px solid transparent}
+.code .ln em{font-style:normal;color:#5d5894;display:inline-block;width:1.8em}
+.code .ln.on{background:rgba(255,107,139,.16);border-left-color:var(--bad)}
+.kw{color:#c792ff}.fn{color:var(--beam)}.nb{color:var(--cmp)}
+.row{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.ghost{font:inherit;font-size:.8rem;background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 12px;cursor:pointer}
+.ghost:hover{color:var(--ink);border-color:var(--muted)}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(9,7,32,.82);backdrop-filter:blur(3px)}
+.card{max-width:400px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.card h2{margin:0;font-size:1.4rem;text-wrap:balance}
+.card p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.55}
+.card p b{color:var(--ink)}
+.card .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.cta{font:inherit;font-weight:700;font-size:1rem;padding:10px 20px;border-radius:12px;border:0;cursor:pointer;background:var(--beam);color:var(--space)}
+.cta.alt{background:var(--deck-2);color:var(--ink);border:1px solid var(--line)}
+.stats{display:flex;gap:16px;font-variant-numeric:tabular-nums}
+.stats div{display:flex;flex-direction:column}
+.stats b{font-size:1.3rem}
+.stats span{font-size:.65rem;color:var(--muted);letter-spacing:.12em}
+@media (max-width:420px){.hud output{font-size:1rem}.card p{font-size:.8rem}.card h2{font-size:1.15rem}}
+@media (prefers-reduced-motion:reduce){.keys button{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><small>Bubble Sort · Tractor Beam Edition</small>UFO 泡泡排序</h1>
+    <div class="cx"><span>TIME <b>O(n²)</b></span><span>SPACE <b>O(1)</b></span></div>
+  </header>
+
+  <div class="hud">
+    <div><label>關卡</label><output id="hLevel">1</output></div>
+    <div><label>分數</label><output id="hScore">0</output></div>
+    <div><label>連擊</label><output id="hCombo">0</output></div>
+    <div><label>能量</label><span id="energy"><i></i><i></i><i></i></span></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="cv" width="720" height="470"></canvas>
+    <div class="bubble" id="bubble"></div>
+    <div class="timer" id="timer"></div>
+    <div class="overlay" id="ovStart">
+      <div class="card">
+        <h2>外星人 Zib 需要你幫忙排序貨物</h2>
+        <p>光束每次對準<b>兩個相鄰方塊</b>。<br>左邊比較大 → 按<b>「交換」</b>，Zib 會把它吸起來往右放。<br>不然就按<b>「不動」</b>。答錯或超時會扣能量。</p>
+        <div class="btns"><button class="cta" id="btnStart">開始遊戲</button><button class="cta alt" id="btnDemo">看示範</button></div>
+        <p>鍵盤：<b>→</b> 或 <b>S</b> 交換 ・ <b>←</b> 或 <b>K</b> 不動</p>
+      </div>
+    </div>
+    <div class="overlay" id="ovEnd" hidden>
+      <div class="card">
+        <h2 id="endTitle">任務完成</h2>
+        <div class="stats">
+          <div><b id="sAcc">0%</b><span>正確率</span></div>
+          <div><b id="sCombo">0</b><span>最高連擊</span></div>
+          <div><b id="sScore">0</b><span>分數</span></div>
+        </div>
+        <p id="endText"></p>
+        <div class="btns"><button class="cta" id="btnNext">下一關</button><button class="cta alt" id="btnMenu">回主選單</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status">&nbsp;</div>
+
+  <div class="keys">
+    <button id="btnKeep" disabled>不動<small>← / K</small></button>
+    <button id="btnSwap" disabled>交換<small>→ / S</small></button>
+  </div>
+
+  <div class="code">
+    <div class="vars"><span>p = <b id="vP">-</b></span><span>i = <b id="vI">-</b></span><span>swapped = <b id="vS">-</b></span><span>a = <b id="vA">[]</b></span></div>
+    <pre id="code"></pre>
+  </div>
+
+  <div class="row">
+    <button class="ghost" id="btnSound">音效：關</button>
+    <button class="ghost" id="btnRestart">重新開始</button>
+  </div>
+</div>
+
+<script>
+(() => {
+// ---------- code panel ----------
+const SRC = [
+  '<span class="kw">def</span> <span class="fn">bubble_sort</span>(a):',
+  '    n = <span class="fn">len</span>(a)',
+  '    <span class="kw">for</span> p <span class="kw">in</span> <span class="fn">range</span>(n - <span class="nb">1</span>):',
+  '        swapped = <span class="nb">False</span>',
+  '        <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(n - <span class="nb">1</span> - p):',
+  '            <span class="kw">if</span> a[i] &gt; a[i + <span class="nb">1</span>]:',
+  '                a[i], a[i + <span class="nb">1</span>] = a[i + <span class="nb">1</span>], a[i]',
+  '                swapped = <span class="nb">True</span>',
+  '        <span class="kw">if not</span> swapped:',
+  '            <span class="kw">break</span>',
+];
+const $ = id => document.getElementById(id);
+$('code').innerHTML = SRC.map((s, k) => `<span class="ln" data-l="${k}"><em>${k + 1}</em>${s}</span>`).join('');
+const lines = [...document.querySelectorAll('.ln')];
+const hl = k => lines.forEach((el, j) => el.classList.toggle('on', j === k));
+function vars(p, i, s) {
+  $('vP').textContent = p ?? '-'; $('vI').textContent = i ?? '-';
+  $('vS').textContent = s == null ? '-' : (s ? 'True' : 'False');
+  $('vA').textContent = '[' + blocks.map(b => b.v).join(', ') + ']';
+}
+
+// ---------- canvas ----------
+const cv = $('cv'), ctx = cv.getContext('2d');
+const W = 720, H = 470, BASE = 398;
+function fit() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth || W;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(w * dpr * H / W);
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+}
+addEventListener('resize', fit);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stars = Array.from({length: 90}, () => ({x: Math.random() * W, y: Math.random() * 300, r: Math.random() * 1.4 + .3, p: Math.random() * 6}));
+
+let blocks = [], n = 0, bw = 56, gap = 12;
+const ufo = {x: W / 2, y: 78, mood: 'idle', moodT: 0, tilt: 0};
+let beam = null;        // {x, y, w, strength}
+let cmp = [-1, -1];
+
+function layout() { bw = Math.min(58, (600 - (n - 1) * 12) / n); gap = 12; }
+const slotX = k => W / 2 - ((n * bw + (n - 1) * gap) / 2) + k * (bw + gap) + bw / 2;
+const hOf = v => 26 + v * 20;
+
+function shade(hex, f) {
+  const c = parseInt(hex.slice(1), 16), r = c >> 16, g = (c >> 8) & 255, b = c & 255;
+  const m = x => Math.max(0, Math.min(255, Math.round(f > 0 ? x + (255 - x) * f : x * (1 + f))));
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+function drawBlock(b, idx) {
+  const h = hOf(b.v), x = b.x - bw / 2, y = BASE - h + b.lift, d = Math.min(9, bw * .18);
+  let col = '#4b4f86';
+  if (b.sorted) col = '#2fbf68';
+  else if (idx === cmp[0]) col = '#e89a2c';
+  else if (idx === cmp[1]) col = '#2aa6c4';
+  if (b.lift < 0) { ctx.save(); ctx.shadowColor = '#5ef2ff'; ctx.shadowBlur = 24; }
+  ctx.fillStyle = shade(col, -.35);           // side
+  ctx.beginPath(); ctx.moveTo(x + bw, y); ctx.lineTo(x + bw + d, y - d); ctx.lineTo(x + bw + d, y + h - d); ctx.lineTo(x + bw, y + h); ctx.fill();
+  ctx.fillStyle = shade(col, .28);            // top
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + d, y - d); ctx.lineTo(x + bw + d, y - d); ctx.lineTo(x + bw, y); ctx.fill();
+  ctx.fillStyle = col; ctx.fillRect(x, y, bw, h); // front
+  if (b.lift < 0) ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(x, y, bw * .22, h);
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(bw * .38)}px "Chakra Petch",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText(b.v, b.x, y + 8);
+  // shadow on platform when lifted
+  if (b.lift < 0) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(b.x, BASE + 4, bw * .55, 5, 0, 0, 7); ctx.fill(); }
+}
+function drawPlatform() {
+  const l = 36, r = W - 36;
+  ctx.fillStyle = '#2b2760'; ctx.beginPath(); ctx.moveTo(l + 20, BASE - 16); ctx.lineTo(r - 4, BASE - 16); ctx.lineTo(r + 16, BASE); ctx.lineTo(l, BASE); ctx.fill();
+  ctx.fillStyle = '#1c1946'; ctx.fillRect(l, BASE, r - l + 16, 26);
+  ctx.fillStyle = 'rgba(94,242,255,.18)'; ctx.fillRect(l, BASE, r - l + 16, 2);
+  // index labels
+  ctx.font = '500 13px "JetBrains Mono",monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let k = 0; k < n; k++) {
+    ctx.fillStyle = k === cmp[0] ? '#ffb84d' : k === cmp[1] ? '#5ef2ff' : '#6d68a8';
+    ctx.fillText(k === cmp[0] ? 'i' : k === cmp[1] ? 'i+1' : k, slotX(k), BASE + 6);
+  }
+}
+function drawBeam(t) {
+  if (!beam || beam.strength <= 0) return;
+  const top = ufo.y + 22, s = beam.strength;
+  const g = ctx.createLinearGradient(0, top, 0, beam.y);
+  g.addColorStop(0, `rgba(94,242,255,${.55 * s})`); g.addColorStop(1, `rgba(94,242,255,${.08 * s})`);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(ufo.x - 14, top); ctx.lineTo(ufo.x + 14, top);
+  ctx.lineTo(beam.x + beam.w / 2, beam.y); ctx.lineTo(beam.x - beam.w / 2, beam.y); ctx.fill();
+  ctx.strokeStyle = `rgba(200,252,255,${.35 * s})`; ctx.lineWidth = 2;
+  for (let k = 0; k < 4; k++) {
+    const f = ((t / 600 + k / 4) % 1), yy = top + (beam.y - top) * f;
+    const half = 14 + (beam.w / 2 - 14) * f + (beam.x - ufo.x) * 0;
+    const cx = ufo.x + (beam.x - ufo.x) * f;
+    ctx.beginPath(); ctx.ellipse(cx, yy, half, 3 + 3 * f, 0, 0, 7); ctx.stroke();
+  }
+}
+function drawUfo(t) {
+  const bob = reduce ? 0 : Math.sin(t / 420) * 4;
+  let wob = 0;
+  if (ufo.mood === 'sad') wob = Math.sin(t / 45) * .09 * Math.max(0, ufo.moodT - t) / 900;
+  const happyHop = ufo.mood === 'happy' ? -Math.abs(Math.sin((ufo.moodT - t) / 110)) * 8 * Math.max(0, ufo.moodT - t) / 900 : 0;
+  ctx.save(); ctx.translate(ufo.x, ufo.y + bob + happyHop); ctx.rotate(wob);
+  // dome
+  ctx.fillStyle = 'rgba(160,230,255,.18)'; ctx.strokeStyle = 'rgba(200,240,255,.6)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(0, -8, 30, 30, 0, Math.PI, 0); ctx.fill(); ctx.stroke();
+  // alien
+  ctx.fillStyle = '#9be86a';
+  ctx.beginPath(); ctx.ellipse(0, -14, 15, 17, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#9be86a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-6, -29); ctx.lineTo(-11, -40); ctx.moveTo(6, -29); ctx.lineTo(11, -40); ctx.stroke();
+  ctx.fillStyle = ufo.mood === 'sad' ? '#ff6b8b' : '#ffb84d';
+  ctx.beginPath(); ctx.arc(-11, -41, 3, 0, 7); ctx.arc(11, -41, 3, 0, 7); ctx.fill();
+  const blink = !reduce && (t % 3200) < 120;
+  ctx.fillStyle = '#120f2e'; ctx.strokeStyle = '#120f2e'; ctx.lineWidth = 2.5;
+  if (ufo.mood === 'happy') {
+    ctx.beginPath(); ctx.arc(-6, -14, 4.5, Math.PI, 0); ctx.moveTo(10.5, -14); ctx.arc(6, -14, 4.5, Math.PI, 0); ctx.stroke();
+  } else if (blink) {
+    ctx.fillRect(-11, -14, 9, 2); ctx.fillRect(2, -14, 9, 2);
+  } else {
+    const dx = beam ? Math.max(-2, Math.min(2, (beam.x - ufo.x) / 30)) : 0;
+    ctx.beginPath(); ctx.ellipse(-6 + dx, -13, 4.5, 6.5, -.25, 0, 7); ctx.ellipse(6 + dx, -13, 4.5, 6.5, .25, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-5 + dx, -15, 1.4, 0, 7); ctx.arc(7 + dx, -15, 1.4, 0, 7); ctx.fill();
+    if (ufo.mood === 'sad') { ctx.strokeStyle = '#120f2e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-11, -23); ctx.lineTo(-3, -21); ctx.moveTo(11, -23); ctx.lineTo(3, -21); ctx.stroke(); }
+  }
+  // mouth
+  ctx.strokeStyle = '#120f2e'; ctx.lineWidth = 1.6; ctx.beginPath();
+  if (ufo.mood === 'sad') ctx.arc(0, -1, 3.5, Math.PI * 1.15, Math.PI * 1.85); else ctx.arc(0, -6, 3.5, .2, Math.PI - .2);
+  ctx.stroke();
+  // saucer
+  const g = ctx.createLinearGradient(0, -8, 0, 20);
+  g.addColorStop(0, '#e6e3ff'); g.addColorStop(.5, '#9c97d6'); g.addColorStop(1, '#4b4685');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 4, 66, 17, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a3570'; ctx.beginPath(); ctx.ellipse(0, 16, 22, 6, 0, 0, 7); ctx.fill();
+  const lc = ufo.mood === 'sad' ? '#ff6b8b' : ufo.mood === 'happy' ? '#4ade80' : '#5ef2ff';
+  for (let k = 0; k < 7; k++) {
+    const a = -Math.PI * .92 + k * (Math.PI * .84 / 6), on = reduce || Math.floor(t / 180 + k) % 3 !== 0;
+    ctx.fillStyle = on ? lc : 'rgba(255,255,255,.2)';
+    ctx.beginPath(); ctx.arc(Math.cos(a) * 52, 6 - Math.sin(a) * 8, 3, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+function frame(t) {
+  ctx.clearRect(0, 0, W, H);
+  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0b0926'); bg.addColorStop(1, '#1a1446');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  for (const s of stars) { ctx.globalAlpha = reduce ? .7 : .35 + .5 * Math.abs(Math.sin(t / 900 + s.p)); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  if (ufo.mood !== 'idle' && t > ufo.moodT) ufo.mood = 'idle';
+  drawPlatform();
+  drawBeam(t);
+  blocks.forEach((b, k) => { if (b.lift === 0) drawBlock(b, k); });
+  blocks.forEach((b, k) => { if (b.lift !== 0) drawBlock(b, k); });
+  drawUfo(t);
+  if (pending) {
+    const left = Math.max(0, pending.deadline - t);
+    $('timer').style.width = (left / pending.limit * 100) + '%';
+    if (left <= 0 && !demo) settle('timeout');
+  } else $('timer').style.width = '0';
+  requestAnimationFrame(frame);
+}
+
+// ---------- tweening with cancellation ----------
+const ABORT = Symbol('abort');
+let run = 0;
+const ease = x => x < .5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2;
+function tween(ms, fn) {
+  const tok = run;
+  return new Promise((res, rej) => {
+    const t0 = performance.now();
+    const step = now => {
+      if (tok !== run) return rej(ABORT);
+      const k = Math.min(1, (now - t0) / (ms * speed)); fn(ease(k));
+      k < 1 ? requestAnimationFrame(step) : res();
+    };
+    requestAnimationFrame(step);
+  });
+}
+const wait = ms => tween(ms, () => {});
+const lerp = (a, b, k) => a + (b - a) * k;
+let speed = 1;
+
+// ---------- sound ----------
+let ac = null, soundOn = false;
+function tone(f, d = .1, type = 'sine', f2, vol = .08) {
+  if (!soundOn || !ac) return;
+  const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+  o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .02);
+}
+function setSound(on) {
+  soundOn = on; $('btnSound').textContent = '音效：' + (on ? '開' : '關');
+  if (on && !ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { soundOn = false; } }
+}
+$('btnSound').onclick = () => setSound(!soundOn);
+
+// ---------- alien voice ----------
+let bubbleTimer;
+function say(msg, ms = 1500) {
+  $('bubble').textContent = msg; clearTimeout(bubbleTimer);
+  if (ms) bubbleTimer = setTimeout(() => $('bubble').textContent = '', ms);
+}
+function mood(m, ms = 900) { ufo.mood = m; ufo.moodT = performance.now() + ms; }
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const CHEER = ['漂亮！', '光束鎖定！', '地球人很會喔', '完美判斷', '嗶嗶，正確', '貨物歸位！'];
+const STREAK = {5: '五連擊！能量滿點', 10: '十連擊！你是排序大師', 20: '二十連擊！母艦在看你了'};
+
+// ---------- game state ----------
+let level = 1, score = 0, combo = 0, bestCombo = 0, energy = 3, demo = false;
+let asked = 0, right = 0;
+let best = 0; try { best = +localStorage.getItem('ufoSortBest') || 0; } catch {}
+function hud() {
+  $('hLevel').textContent = level; $('hScore').textContent = score; $('hCombo').textContent = combo;
+  [...$('energy').children].forEach((el, k) => el.classList.toggle('off', k >= energy));
+}
+
+let pending = null;
+function settle(choice) {
+  if (!pending) return;
+  const p = pending; pending = null; buttons(false); p.resolve(choice);
+}
+function askChoice(limit, answer) {
+  const tok = run;
+  return new Promise((resolve, reject) => {
+    const now = performance.now();
+    pending = {resolve, limit, deadline: now + limit, tok};
+    abortPending = () => reject(ABORT);
+    if (demo) { tween(750, () => {}).then(() => settle(answer), () => {}); }
+    else buttons(true);
+  });
+}
+let abortPending = () => {};
+function buttons(on) { $('btnSwap').disabled = $('btnKeep').disabled = !on; }
+$('btnSwap').onclick = () => settle('swap');
+$('btnKeep').onclick = () => settle('keep');
+addEventListener('keydown', e => {
+  if (!pending || demo) return;
+  if (e.key === 'ArrowRight' || e.key === 's' || e.key === 'S') { e.preventDefault(); settle('swap'); }
+  if (e.key === 'ArrowLeft' || e.key === 'k' || e.key === 'K') { e.preventDefault(); settle('keep'); }
+});
+
+function newArray(size) {
+  let a;
+  do { a = Array.from({length: size}, () => 1 + Math.floor(Math.random() * 9)); }
+  while (a.every((v, k) => k === 0 || a[k - 1] <= v));
+  return a;
+}
+const sizeFor = lv => Math.min(10, 4 + lv);
+const limitFor = lv => Math.max(1800, 6000 - (lv - 1) * 700);
+
+async function moveUfo(x, ms = 260) { const x0 = ufo.x; await tween(ms, k => ufo.x = lerp(x0, x, k)); }
+
+async function beamSwap(i) {
+  const A = blocks[i], B = blocks[i + 1];
+  await moveUfo(A.x, 220);
+  beam = {x: A.x, y: BASE, w: bw * 1.5, strength: 0};
+  tone(300, .35, 'sawtooth', 900, .04);
+  await tween(160, k => beam.strength = k);
+  await tween(300, k => { A.lift = -62 * k; beam.y = BASE - 62 * k; });
+  const ax = A.x, bx = B.x;
+  tone(520, .18, 'triangle', 700, .05);
+  await tween(380, k => { A.x = lerp(ax, bx, k); B.x = lerp(bx, ax, k); ufo.x = A.x; beam.x = A.x; });
+  await tween(220, k => { A.lift = -62 * (1 - k); beam.y = BASE - 62 * (1 - k); });
+  tone(160, .08, 'square', null, .04);
+  await tween(140, k => beam.strength = 1 - k);
+  beam = null;
+  blocks[i] = B; blocks[i + 1] = A;
+}
+async function scan(i) {
+  const mid = (blocks[i].x + blocks[i + 1].x) / 2;
+  beam = {x: mid, y: BASE, w: bw * 2.6, strength: 0};
+  await tween(160, k => beam.strength = .5 * k);
+  await wait(120);
+  await tween(160, k => beam.strength = .5 * (1 - k));
+  beam = null;
+}
+
+async function play() {
+  const size = sizeFor(level);
+  n = size; layout();
+  blocks = newArray(size).map((v, k) => ({v, x: slotX(k), lift: 0, sorted: false}));
+  cmp = [-1, -1]; asked = right = 0; beam = null;
+  hud(); hl(1); vars(null, null, null);
+  say(demo ? '示範模式：看 Zib 怎麼排' : `第 ${level} 關：${size} 個貨物`, 1800);
+  await moveUfo(W / 2, 300); await wait(700);
+  const limit = limitFor(level);
+  let p = 0;
+  for (; p < n - 1; p++) {
+    let swapped = false;
+    hl(2); vars(p, null, null); await wait(260);
+    hl(3); vars(p, null, false); await wait(220);
+    for (let i = 0; i < n - 1 - p; i++) {
+      hl(4); vars(p, i, swapped);
+      cmp = [i, i + 1];
+      await moveUfo((blocks[i].x + blocks[i + 1].x) / 2, 240);
+      hl(5);
+      const a = blocks[i].v, b = blocks[i + 1].v, need = a > b;
+      $('status').textContent = `a[${i}] = ${a}  >  a[${i + 1}] = ${b} ?`;
+      tone(660, .05, 'sine', null, .03);
+      const t0 = performance.now();
+      const choice = await askChoice(limit, need ? 'swap' : 'keep');
+      const ok = choice === (need ? 'swap' : 'keep');
+      if (!demo) {
+        asked++;
+        if (ok) {
+          right++; combo++; bestCombo = Math.max(bestCombo, combo);
+          const fast = Math.max(0, 1 - (performance.now() - t0) / limit);
+          score += 10 + Math.round(fast * 10) + Math.min(combo, 20) * 2;
+          mood('happy'); say(STREAK[combo] || pick(CHEER), 1100); tone(880, .09, 'triangle', 1320, .05);
+        } else {
+          combo = 0; energy--; mood('sad', 1100);
+          tone(140, .3, 'square', 90, .05);
+          say(choice === 'timeout' ? `太慢了！${a} ${need ? '>' : '≤'} ${b}，要${need ? '交換' : '不動'}` :
+            need ? `咦？${a} 比 ${b} 大，要交換喔` : `${a} 沒有比 ${b} 大，不用動`, 2000);
+        }
+        hud();
+        if (energy <= 0) { await wait(900); return finish(false); }
+      }
+      if (need) {
+        hl(6); $('status').textContent = `swap a[${i}], a[${i + 1}]`;
+        await beamSwap(i);
+        swapped = true; hl(7); vars(p, i, swapped); await wait(120);
+      } else {
+        $('status').textContent = `keep a[${i}], a[${i + 1}]`;
+        await scan(i);
+      }
+    }
+    cmp = [-1, -1];
+    blocks[n - 1 - p].sorted = true; tone(990, .06, 'sine', null, .03);
+    hl(8); vars(p, null, swapped); await wait(320);
+    if (!swapped) {
+      hl(9); $('status').textContent = 'swapped == False → break';
+      say('這一輪都沒交換，提早收工！', 1600);
+      await wait(500); break;
+    }
+  }
+  for (let k = 0; k < n; k++) { if (!blocks[k].sorted) { blocks[k].sorted = true; tone(600 + k * 60, .06, 'sine', null, .03); await wait(60); } }
+  vars(null, null, null);
+  return finish(true);
+}
+
+async function finish(won) {
+  pending = null; buttons(false); cmp = [-1, -1];
+  $('status').innerHTML = '&nbsp;';
+  if (won) { mood('happy', 1600); say(demo ? '排好了！換你試試' : '全部歸位！', 1500); [523, 659, 784, 1046].forEach((f, k) => setTimeout(() => tone(f, .12, 'triangle', null, .05), k * 110)); }
+  if (!demo && score > best) { best = score; try { localStorage.setItem('ufoSortBest', best); } catch {} }
+  await wait(900);
+  const acc = asked ? Math.round(right / asked * 100) : 100;
+  $('sAcc').textContent = demo ? '—' : acc + '%';
+  $('sCombo').textContent = demo ? '—' : bestCombo;
+  $('sScore').textContent = demo ? '—' : score;
+  if (demo) {
+    $('endTitle').textContent = '示範結束';
+    $('endText').innerHTML = '每一輪最大的貨物會被一路光束搬到最右邊，像泡泡浮上去一樣。';
+    $('btnNext').textContent = '開始遊戲';
+  } else if (won) {
+    $('endTitle').textContent = `第 ${level} 關完成`;
+    $('endText').innerHTML = `下一關有 <b>${sizeFor(level + 1)}</b> 個貨物，思考時間 <b>${(limitFor(level + 1) / 1000).toFixed(1)} 秒</b>。最高分 <b>${best}</b>`;
+    $('btnNext').textContent = '下一關';
+  } else {
+    $('endTitle').textContent = '能量耗盡';
+    $('endText').innerHTML = `你撐到第 <b>${level}</b> 關。最高分 <b>${best}</b>`;
+    $('btnNext').textContent = '再玩一次';
+  }
+  $('ovEnd').dataset.next = demo ? 'start' : won ? 'next' : 'start';
+  $('ovEnd').hidden = false;
+}
+
+function reset() { run++; abortPending(); pending = null; buttons(false); beam = null; }
+function begin(isDemo, fresh) {
+  reset();
+  demo = isDemo; speed = isDemo ? .8 : 1;
+  if (fresh) { level = 1; score = 0; combo = 0; bestCombo = 0; energy = 3; }
+  $('ovStart').hidden = true; $('ovEnd').hidden = true;
+  play().catch(e => { if (e !== ABORT) throw e; });
+}
+$('btnStart').onclick = () => { if (!ac) setSound(true); begin(false, true); };
+$('btnDemo').onclick = () => begin(true, true);
+$('btnNext').onclick = () => {
+  const nx = $('ovEnd').dataset.next;
+  if (nx === 'next') { level++; energy = Math.min(3, energy + 1); begin(false, false); }
+  else { if (!ac) setSound(true); begin(false, true); }
+};
+$('btnMenu').onclick = () => { reset(); $('ovEnd').hidden = true; $('ovStart').hidden = false; idle(); };
+$('btnRestart').onclick = () => begin(false, true);
+
+function idle() {
+  n = 7; layout();
+  blocks = [5, 2, 8, 3, 7, 1, 6].map((v, k) => ({v, x: slotX(k), lift: 0, sorted: false}));
+  cmp = [-1, -1]; level = 1; score = 0; combo = 0; energy = 3; hud(); hl(-1); vars(null, null, null);
+}
+
+function start() { fit(); idle(); requestAnimationFrame(frame); }
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
+})();
+</script>
