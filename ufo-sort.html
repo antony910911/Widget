@@ -103,8 +103,9 @@ button:focus-visible{outline:3px solid var(--cmp);outline-offset:2px}
     <div class="overlay" id="ovStart">
       <div class="card">
         <h2>外星人 Zib 需要你幫忙排序貨物</h2>
-        <p>光束每次對準<b>兩個相鄰方塊</b>。<br>左邊比較大 → 按<b>「交換」</b>，Zib 會把它吸起來往右放。<br>不然就按<b>「不動」</b>。答錯或超時會扣能量。</p>
-        <div class="btns"><button class="cta" id="btnStart">開始遊戲</button><button class="cta alt" id="btnDemo">看示範</button></div>
+        <p>光束每次對準<b>兩個相鄰方塊</b>，只要看<b>哪個比較高</b>。<br>左邊比較高 → 按<b>「交換」</b>，Zib 會把它吸起來往右放。<br>不然就按<b>「不動」</b>。</p>
+        <div class="btns"><button class="cta" id="btnStart">輕鬆模式</button><button class="cta alt" id="btnHard">挑戰模式</button><button class="cta alt" id="btnDemo">看示範</button></div>
+        <p><b>輕鬆</b>：不計時、答錯不扣能量，想太久 Zib 會提示。<br><b>挑戰</b>：限時作答，答錯扣能量。</p>
         <p>鍵盤：<b>→</b> 或 <b>S</b> 交換 ・ <b>←</b> 或 <b>K</b> 不動</p>
       </div>
     </div>
@@ -210,6 +211,11 @@ function drawBlock(b, idx) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.fillText(b.v, b.x, y + 8);
   // shadow on platform when lifted
+  if (idx === hintIdx) {
+    const ay = y - d - 14 - (reduce ? 0 : Math.abs(Math.sin(performance.now() / 180)) * 8);
+    ctx.fillStyle = '#ffb84d'; ctx.beginPath(); ctx.moveTo(b.x - 10, ay - 14); ctx.lineTo(b.x + 10, ay - 14); ctx.lineTo(b.x, ay); ctx.fill();
+    ctx.font = '700 13px "Chakra Petch",sans-serif'; ctx.textBaseline = 'bottom'; ctx.fillText('比較高', b.x, ay - 16);
+  }
   if (b.lift < 0) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(b.x, BASE + 4, bw * .55, 5, 0, 0, 7); ctx.fill(); }
 }
 function drawPlatform() {
@@ -300,7 +306,12 @@ function frame(t) {
   if (pending) {
     const left = Math.max(0, pending.deadline - t);
     $('timer').style.width = (left / pending.limit * 100) + '%';
-    if (left <= 0 && !demo) settle('timeout');
+    if (easy) $('timer').style.width = '0';
+    if (left <= 0 && !demo && !easy) settle('timeout');
+    if (easy && !demo && !pending.hinted && t - pending.start > 3500) {
+      pending.hinted = true; hintIdx = blocks[cmp[0]].v >= blocks[cmp[1]].v ? cmp[0] : cmp[1];
+      say(blocks[cmp[0]].v === blocks[cmp[1]].v ? '一樣高耶，那就不用動' : '提示：看箭頭，哪個比較高？', 2200);
+    }
   } else $('timer').style.width = '0';
   requestAnimationFrame(frame);
 }
@@ -352,7 +363,7 @@ const CHEER = ['漂亮！', '光束鎖定！', '地球人很會喔', '完美判�
 const STREAK = {5: '五連擊！能量滿點', 10: '十連擊！你是排序大師', 20: '二十連擊！母艦在看你了'};
 
 // ---------- game state ----------
-let level = 1, score = 0, combo = 0, bestCombo = 0, energy = 3, demo = false;
+let level = 1, score = 0, combo = 0, bestCombo = 0, energy = 3, demo = false, easy = true, hintIdx = -1;
 let asked = 0, right = 0;
 let best = 0; try { best = +localStorage.getItem('ufoSortBest') || 0; } catch {}
 function hud() {
@@ -363,13 +374,13 @@ function hud() {
 let pending = null;
 function settle(choice) {
   if (!pending) return;
-  const p = pending; pending = null; buttons(false); p.resolve(choice);
+  const p = pending; pending = null; hintIdx = -1; buttons(false); p.resolve(choice);
 }
 function askChoice(limit, answer) {
   const tok = run;
   return new Promise((resolve, reject) => {
     const now = performance.now();
-    pending = {resolve, limit, deadline: now + limit, tok};
+    pending = {resolve, limit, deadline: now + limit, start: now, tok};
     abortPending = () => reject(ABORT);
     if (demo) { tween(750, () => {}).then(() => settle(answer), () => {}); }
     else buttons(true);
@@ -385,13 +396,14 @@ addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft' || e.key === 'k' || e.key === 'K') { e.preventDefault(); settle('keep'); }
 });
 
-function newArray(size) {
+function newArray(size, maxV) {
   let a;
-  do { a = Array.from({length: size}, () => 1 + Math.floor(Math.random() * 9)); }
+  do { a = Array.from({length: size}, () => 1 + Math.floor(Math.random() * maxV)); }
   while (a.every((v, k) => k === 0 || a[k - 1] <= v));
   return a;
 }
-const sizeFor = lv => Math.min(10, 4 + lv);
+const sizeFor = lv => easy ? Math.min(8, 3 + lv) : Math.min(10, 4 + lv);
+const maxFor = lv => easy ? Math.min(9, 4 + lv) : 9;
 const limitFor = lv => Math.max(1800, 6000 - (lv - 1) * 700);
 
 async function moveUfo(x, ms = 260) { const x0 = ufo.x; await tween(ms, k => ufo.x = lerp(x0, x, k)); }
@@ -424,7 +436,7 @@ async function scan(i) {
 async function play() {
   const size = sizeFor(level);
   n = size; layout();
-  blocks = newArray(size).map((v, k) => ({v, x: slotX(k), lift: 0, sorted: false}));
+  blocks = newArray(size, maxFor(level)).map((v, k) => ({v, x: slotX(k), lift: 0, sorted: false}));
   cmp = [-1, -1]; asked = right = 0; beam = null;
   hud(); hl(1); vars(null, null, null);
   say(demo ? '示範模式：看 Zib 怎麼排' : `第 ${level} 關：${size} 個貨物`, 1800);
@@ -441,7 +453,7 @@ async function play() {
       await moveUfo((blocks[i].x + blocks[i + 1].x) / 2, 240);
       hl(5);
       const a = blocks[i].v, b = blocks[i + 1].v, need = a > b;
-      $('status').textContent = `a[${i}] = ${a}  >  a[${i + 1}] = ${b} ?`;
+      $('status').textContent = `左邊 ${a} 比右邊 ${b} 大嗎？`;
       tone(660, .05, 'sine', null, .03);
       const t0 = performance.now();
       const choice = await askChoice(limit, need ? 'swap' : 'keep');
@@ -454,7 +466,7 @@ async function play() {
           score += 10 + Math.round(fast * 10) + Math.min(combo, 20) * 2;
           mood('happy'); say(STREAK[combo] || pick(CHEER), 1100); tone(880, .09, 'triangle', 1320, .05);
         } else {
-          combo = 0; energy--; mood('sad', 1100);
+          combo = 0; if (!easy) energy--; mood('sad', 1100);
           tone(140, .3, 'square', 90, .05);
           say(choice === 'timeout' ? `太慢了！${a} ${need ? '>' : '≤'} ${b}，要${need ? '交換' : '不動'}` :
             need ? `咦？${a} 比 ${b} 大，要交換喔` : `${a} 沒有比 ${b} 大，不用動`, 2000);
@@ -501,7 +513,7 @@ async function finish(won) {
     $('btnNext').textContent = '開始遊戲';
   } else if (won) {
     $('endTitle').textContent = `第 ${level} 關完成`;
-    $('endText').innerHTML = `下一關有 <b>${sizeFor(level + 1)}</b> 個貨物，思考時間 <b>${(limitFor(level + 1) / 1000).toFixed(1)} 秒</b>。最高分 <b>${best}</b>`;
+    $('endText').innerHTML = `下一關有 <b>${sizeFor(level + 1)}</b> 個貨物` + (easy ? '' : `，思考時間 <b>${(limitFor(level + 1) / 1000).toFixed(1)} 秒</b>`) + `。最高分 <b>${best}</b>`;
     $('btnNext').textContent = '下一關';
   } else {
     $('endTitle').textContent = '能量耗盡';
@@ -512,7 +524,7 @@ async function finish(won) {
   $('ovEnd').hidden = false;
 }
 
-function reset() { run++; abortPending(); pending = null; buttons(false); beam = null; }
+function reset() { run++; abortPending(); pending = null; hintIdx = -1; buttons(false); beam = null; }
 function begin(isDemo, fresh) {
   reset();
   demo = isDemo; speed = isDemo ? .8 : 1;
@@ -520,8 +532,9 @@ function begin(isDemo, fresh) {
   $('ovStart').hidden = true; $('ovEnd').hidden = true;
   play().catch(e => { if (e !== ABORT) throw e; });
 }
-$('btnStart').onclick = () => { if (!ac) setSound(true); begin(false, true); };
-$('btnDemo').onclick = () => begin(true, true);
+$('btnStart').onclick = () => { easy = true; if (!ac) setSound(true); begin(false, true); };
+$('btnHard').onclick = () => { easy = false; if (!ac) setSound(true); begin(false, true); };
+$('btnDemo').onclick = () => { easy = true; begin(true, true); };
 $('btnNext').onclick = () => {
   const nx = $('ovEnd').dataset.next;
   if (nx === 'next') { level++; energy = Math.min(3, energy + 1); begin(false, false); }
