@@ -1,0 +1,10 @@
+const $=id=>document.getElementById(id);
+let messages=[],busy=false,generation=0;
+const captions={'雨夜咖啡館':'一杯溫熱的茶，和一段不趕時間的對話。','海邊散步':'讓晚風帶走疲憊，一起聽聽海的聲音。','星空露台':'抬頭看星星，把今晚留給自己。'};
+function add(role,content){const el=document.createElement('div');el.className='message '+role;el.textContent=content;$('messages').append(el);el.scrollIntoView({block:'nearest',behavior:'smooth'});return el;}
+function reset(){generation++;messages=[];$('messages').replaceChildren();add('assistant','嗨，我是月，一個 AI 聊天角色。今晚想聊聊心情，還是一起想像一段溫柔的日常？');$('scene-title').textContent=$('scene').value;document.querySelector('.scene-caption p').textContent=captions[$('scene').value];$('notice').textContent='對話只暫存在本頁；重新整理或開始新對話後即清除。';}
+$('clear').onclick=reset;$('scene').onchange=reset;$('tone').onchange=reset;
+demoFetch('/api/status').then(r=>r.json()).then(d=>{$('mode').textContent=d.mode==='grok'?'Grok 已設定':'示範模式';}).catch(()=>{$('mode').textContent='連線失敗';});
+$('chat').onsubmit=async e=>{e.preventDefault();if(busy)return;const content=$('input').value.trim();if(!content)return;const turn=generation;busy=true;$('send').disabled=true;$('input').value='';add('user',content);const next=[...messages,{role:'user',content}].slice(-19);const pending=add('assistant','月正在想一想…');try{const res=await demoFetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:next,scene:$('scene').value,tone:$('tone').value}),signal:AbortSignal.timeout(35000)});const data=await res.json();if(!res.ok)throw new Error(data.error||'傳送失敗');if(turn!==generation)return;pending.textContent=data.reply;messages=[...next,{role:'assistant',content:data.reply}];$('notice').textContent=data.mode==='demo'?'互動示範版 · 預設回覆，尚未串接 Grok。':'由 Grok 回覆 · 對話已傳送至 xAI 處理';}catch(error){if(turn!==generation)return;pending.remove();$('input').value=content;$('notice').textContent=error.name==='TimeoutError'?'回覆逾時，請重試。':error.message;}finally{busy=false;$('send').disabled=false;}};
+document.querySelectorAll('#suggestions button').forEach(b=>b.onclick=()=>{$('input').value=b.textContent;$('input').focus();});
+reset();
