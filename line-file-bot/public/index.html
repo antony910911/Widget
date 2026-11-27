@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINE 檔案櫃</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2306C755'/%3E%3Cpath d='M8 11h6l2 2h8v9a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="icon-btn only-mobile" id="menuBtn" aria-label="開啟篩選選單">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="brand">
+    <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+    <span class="brand-name">LINE 檔案櫃</span>
+  </div>
+  <label class="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="搜尋檔名、上傳者、標籤…" autocomplete="off">
+  </label>
+  <div class="top-actions">
+    <select id="sort" aria-label="排序">
+      <option value="newest">最新上傳</option>
+      <option value="oldest">最早上傳</option>
+      <option value="name">檔名</option>
+      <option value="size">檔案大小</option>
+    </select>
+    <div class="seg" role="group" aria-label="顯示方式">
+      <button data-view="grid" title="圖示顯示" aria-label="圖示顯示"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg></button>
+      <button data-view="list" title="清單顯示" aria-label="清單顯示"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+    </div>
+    <label class="btn primary" title="手動上傳檔案">
+      <svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg><span>上傳</span>
+      <input type="file" id="uploadInput" multiple hidden>
+    </label>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="stat">
+      <div><b id="statCount">0</b><span>個檔案</span></div>
+      <div><b id="statSize">0 B</b><span>總容量</span></div>
+    </div>
+    <nav>
+      <h3>分類資料夾</h3>
+      <ul id="catList" class="facet"></ul>
+      <h3>上傳者</h3>
+      <ul id="uploaderList" class="facet"></ul>
+      <h3 id="groupHead">群組</h3>
+      <ul id="groupList" class="facet"></ul>
+      <h3>標籤</h3>
+      <div id="tagCloud" class="tag-cloud"></div>
+    </nav>
+  </aside>
+  <div class="scrim only-mobile" id="scrim"></div>
+
+  <main class="main">
+    <div class="filterbar" id="filterbar" hidden></div>
+    <div class="result-meta" id="resultMeta"></div>
+    <section id="files" class="files grid" aria-live="polite"></section>
+    <div class="empty" id="empty" hidden>
+      <svg viewBox="0 0 64 64"><path d="M8 20h18l4 4h26v26a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z"/><path d="M24 38h16"/></svg>
+      <p id="emptyText">還沒有檔案</p>
+      <small>把 Bot 加進 LINE 群組，成員上傳的檔案就會自動出現在這裡。</small>
+    </div>
+  </main>
+</div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2 id="dTitle">檔案資訊</h2>
+    <button class="icon-btn" id="dClose" aria-label="關閉"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+
+<div class="dropzone" id="dropzone"><div>放開即可上傳</div></div>
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "line-file-bot",
+  "version": "1.0.0",
+  "description": "LINE 群組檔案自動下載、分類、標籤與管理介面",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "dev": "node --watch --env-file-if-exists=.env src/index.js",
+    "seed-demo": "node --env-file-if-exists=.env scripts/seed-demo.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20.12" },
+  "dependencies": {
+    "express": "4.21.2"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "categories": [
+    { "name": "文件",   "icon": "doc",     "exts": ["pdf", "doc", "docx", "odt", "rtf", "txt", "md", "pages"] },
+    { "name": "試算表", "icon": "sheet",   "exts": ["xls", "xlsx", "xlsm", "csv", "ods", "numbers"] },
+    { "name": "簡報",   "icon": "slide",   "exts": ["ppt", "pptx", "odp", "key"] },
+    { "name": "圖片",   "icon": "image",   "exts": ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "svg", "tif", "tiff"] },
+    { "name": "影片",   "icon": "video",   "exts": ["mp4", "mov", "m4v", "avi", "mkv", "webm", "3gp"] },
+    { "name": "音訊",   "icon": "audio",   "exts": ["mp3", "m4a", "aac", "wav", "flac", "ogg", "amr"] },
+    { "name": "壓縮檔", "icon": "archive", "exts": ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2"] },
+    { "name": "設計檔", "icon": "design",  "exts": ["psd", "ai", "fig", "sketch", "xd", "indd", "dwg", "dxf"] },
+    { "name": "程式碼", "icon": "code",    "exts": ["js", "ts", "py", "java", "c", "cpp", "cs", "go", "rb", "php", "html", "css", "json", "xml", "sql", "sh"] }
+  ],
+  "fallbackCategory": { "name": "其他", "icon": "file" },
+
+  "_keywordRulesHelp": "檔名包含 keywords 任一字（不分大小寫）就加上 tag；若有填 folder，檔案會放到 <分類>/<folder> 子資料夾",
+  "keywordRules": [
+    { "keywords": ["報價", "quotation", "quote"], "tag": "報價單", "folder": "報價單" },
+    { "keywords": ["發票", "invoice", "收據", "receipt"], "tag": "發票收據", "folder": "發票收據" },
+    { "keywords": ["合約", "契約", "contract", "協議"], "tag": "合約", "folder": "合約" },
+    { "keywords": ["會議", "meeting", "紀錄", "minutes"], "tag": "會議紀錄" },
+    { "keywords": ["企劃", "提案", "proposal"], "tag": "企劃提案" },
+    { "keywords": ["報告", "report"], "tag": "報告" },
+    { "keywords": ["設計", "design", "logo", "mockup"], "tag": "設計" }
+  ]
+}
