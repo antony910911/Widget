@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+/*__STYLES__*/
+</style>
+</head>
+<body>
+<!-- 載入中 -->
+<div class="loading" id="loadingView"><span class="spinner"></span><span>載入中…</span></div>
+
+<!-- 登入 / 首次設定 -->
+<div class="view auth-page" id="authView" hidden>
+  <main class="auth-card">
+    <div class="brand auth-brand">
+      <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+      <span>LINE 檔案櫃</span>
+    </div>
+    <form id="authForm">
+      <h1 id="authTitle">登入</h1>
+      <p id="authLead" class="muted">輸入管理密碼</p>
+      <label class="field"><span>密碼</span><input id="pw" type="password" autocomplete="current-password" required></label>
+      <label class="field" id="pw2Wrap" hidden><span>再輸入一次</span><input id="pw2" type="password" autocomplete="new-password"></label>
+      <p class="form-error" id="authErr" role="alert"></p>
+      <button class="btn primary block" id="authBtn">登入</button>
+    </form>
+  </main>
+</div>
+
+<!-- 主畫面 -->
+<div class="view" id="appView" hidden>
+<header class="topbar">
+  <button class="icon-btn only-mobile" id="menuBtn" aria-label="開啟篩選選單" data-only="files">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="brand">
+    <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+    <span class="brand-name">LINE 檔案櫃</span>
+  </div>
+  <nav class="tabs">
+    <a href="#files" data-tab="files" class="on">檔案</a>
+    <a href="#settings" data-tab="settings">設定</a>
+  </nav>
+  <label class="search" data-only="files">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="搜尋檔名、上傳者、標籤…" autocomplete="off">
+  </label>
+  <div class="top-actions">
+    <select id="sort" aria-label="排序" data-only="files">
+      <option value="newest">最新上傳</option>
+      <option value="oldest">最早上傳</option>
+      <option value="name">檔名</option>
+      <option value="size">檔案大小</option>
+    </select>
+    <div class="seg" role="group" aria-label="顯示方式" data-only="files">
+      <button data-view="grid" title="圖示顯示" aria-label="圖示顯示"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg></button>
+      <button data-view="list" title="清單顯示" aria-label="清單顯示"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+    </div>
+    <button class="icon-btn" id="refreshBtn" title="重新整理" aria-label="重新整理" data-only="files"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg></button>
+    <button class="btn" id="logoutBtn">登出</button>
+  </div>
+</header>
+
+<!-- 檔案頁 -->
+<div class="layout" id="filesTab">
+  <aside class="sidebar" id="sidebar">
+    <div class="stat">
+      <div><b id="statCount">0</b><span>個檔案</span></div>
+      <div><b id="statSize">0 B</b><span>總容量</span></div>
+    </div>
+    <nav>
+      <h3>分類資料夾</h3>
+      <ul id="catList" class="facet"></ul>
+      <h3>上傳者</h3>
+      <ul id="uploaderList" class="facet"></ul>
+      <h3 id="groupHead">群組</h3>
+      <ul id="groupList" class="facet"></ul>
+      <h3>標籤</h3>
+      <div id="tagCloud" class="tag-cloud"></div>
+    </nav>
+  </aside>
+  <div class="scrim only-mobile" id="scrim"></div>
+  <main class="main">
+    <a class="banner" id="setupBanner" href="#settings" hidden>⚙️ 還沒連接 LINE Bot，點這裡到「設定」完成設定 →</a>
+    <div class="filterbar" id="filterbar" hidden></div>
+    <div class="result-meta"><span id="resultText"></span>
+      <a class="link-btn" id="sheetLink" target="_blank" rel="noopener" hidden>在 Google 試算表開啟清單 ↗</a>
+    </div>
+    <section id="files" class="files grid" aria-live="polite"></section>
+    <div class="empty" id="empty" hidden>
+      <svg viewBox="0 0 64 64"><path d="M8 20h18l4 4h26v26a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z"/><path d="M24 38h16"/></svg>
+      <p id="emptyText">還沒有檔案</p>
+      <small>把 Bot 加進 LINE 群組，成員上傳的檔案就會自動出現在這裡。</small>
+    </div>
+  </main>
+</div>
+
+<!-- 設定頁 -->
+<main class="settings" id="settingsTab" hidden>
+  <section class="box" id="checklistCard">
+    <h2>開始使用</h2>
+    <p class="muted">照著下面的步驟做，每完成一步就會自動打勾。</p>
+    <ol class="checklist" id="checklist"></ol>
+  </section>
+
+  <section class="box" id="lineBox">
+    <h2>LINE 連線</h2>
+    <div class="field">
+      <span>Webhook 網址 <small class="muted">— 整串貼到 LINE Developers › Messaging API › Webhook URL</small></span>
+      <div class="copy-row"><input id="webhookUrl" readonly><button class="btn" id="copyWebhook">複製</button></div>
+      <p class="note">網址最後的 <code>?key=…</code> 是防止別人冒充 LINE 的密碼，請整串複製，不要外流。</p>
+    </div>
+    <label class="field">
+      <span>Channel access token <small class="muted">— Messaging API 分頁最下方，按 Issue 產生</small></span>
+      <textarea id="token" rows="3" autocomplete="off" spellcheck="false"></textarea>
+    </label>
+    <div class="row-actions">
+      <button class="btn primary" id="saveLine">儲存並測試</button>
+      <button class="btn" id="testLine">只測試連線</button>
+      <a class="btn ghost" href="https://developers.line.biz/console/" target="_blank" rel="noopener">開啟 LINE Developers ↗</a>
+    </div>
+    <div class="test-result" id="testResult" hidden></div>
+    <label class="switch"><input type="checkbox" id="replyOnSave"><span>收到檔案後在群組回覆「📁 已收到…」</span></label>
+  </section>
+
+  <section class="box" id="storageBox">
+    <h2>儲存位置</h2>
+    <p class="muted">選擇新收到的檔案要存到哪裡。切換後，舊檔案會留在原本的位置，管理介面仍然看得到。</p>
+    <div class="storage-grid" id="storageGrid"></div>
+    <div id="connectPanel"></div>
+    <label class="field inline"><span>根資料夾名稱</span><input id="rootFolder" maxlength="60"><button class="btn small" id="saveRoot">儲存</button></label>
+  </section>
+
+  <section class="box" id="rulesBox">
+    <h2>分類規則</h2>
+    <p class="muted">依副檔名決定放進哪個資料夾。副檔名用逗號或空白分開。</p>
+    <div class="rules-table" id="catTable"></div>
+    <button class="btn small" id="addCat">＋ 新增分類</button>
+    <label class="field inline"><span>其他檔案放到</span><input id="fallbackName" maxlength="30"></label>
+    <h3>檔名關鍵字</h3>
+    <p class="muted">檔名包含任一個關鍵字，就自動加上標籤；有填子資料夾的話，會放進「分類/子資料夾」。</p>
+    <div class="rules-table" id="kwTable"></div>
+    <button class="btn small" id="addKw">＋ 新增關鍵字規則</button>
+    <div class="row-actions sticky-actions">
+      <button class="btn primary" id="saveRules">儲存規則</button>
+      <button class="btn" id="reclassify">依新規則重新整理現有檔案</button>
+      <button class="btn ghost" id="resetRules">還原預設規則</button>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2>變更管理密碼</h2>
+    <form id="pwForm" class="pw-form">
+      <label class="field"><span>目前密碼</span><input type="password" id="pwCur" autocomplete="current-password" required></label>
+      <label class="field"><span>新密碼（至少 6 個字）</span><input type="password" id="pwNew" autocomplete="new-password" minlength="6" required></label>
+      <button class="btn">變更密碼</button>
+    </form>
+  </section>
+
+  <section class="box">
+    <h2>活動紀錄 <small class="muted" id="statusLine"></small></h2>
+    <ul class="activity" id="activity"></ul>
+  </section>
+</main>
+</div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2 id="dTitle">檔案資訊</h2>
+    <button class="icon-btn" id="dClose" aria-label="關閉"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/*__SCRIPT__*/
+</script>
+</body>
+</html>

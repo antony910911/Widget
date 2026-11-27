@@ -1,0 +1,10 @@
+{
+  "name": "line-file-bot-gas",
+  "private": true,
+  "description": "LINE 檔案櫃 Google Apps Script 版（程式碼在 src/、ui/，執行 npm run build 產生 dist/）",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node build.js && node --test test/*.test.js",
+    "dev": "node build.js && node dev/server.js"
+  }
+}

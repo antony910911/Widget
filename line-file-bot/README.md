@@ -1,5 +1,7 @@
 # LINE 檔案櫃 Bot
 
+> 💡 不想租主機？另有免費的 **Google Apps Script 版**，檔案可存到 Google 雲端硬碟 / OneDrive / Dropbox：見 [`../line-file-bot-gas`](../line-file-bot-gas/)。
+
 把 Bot 加進 LINE 群組後，成員在群組裡傳的**檔案、圖片、影片、語音**會自動：
 
 1. **下載**到伺服器
