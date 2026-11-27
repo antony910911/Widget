@@ -60,6 +60,8 @@ npm start                # http://localhost:3000
 
 ## 部署建議
 
+👉 **雲端主機一步一步教學與一鍵安裝腳本：請看 [DEPLOY.md](DEPLOY.md)**
+
 這個程式會把檔案存在磁碟上，所以要部署在**有永久磁碟**的地方：
 
 - 自己的電腦 / NAS + ngrok 或 Cloudflare Tunnel（最簡單，檔案直接在自己硬碟上）
@@ -76,6 +78,7 @@ npm start                # http://localhost:3000
 | `LINE_CHANNEL_ACCESS_TOKEN` | Channel access token，用來下載檔案、查詢成員名稱 |
 | `ADMIN_PASSWORD` | 管理介面密碼（帳號 admin）。留空 = 不設密碼 |
 | `PORT` | 埠號，預設 3000 |
+| `HOST` | 監聽位址，預設全部；放在反向代理後面時設 `127.0.0.1` |
 | `STORAGE_DIR` | 檔案存放位置，預設 `./storage` |
 | `DATA_DIR` | 資料庫位置，預設 `./data`（`db.json`） |
 | `REPLY_ON_SAVE` | `true` 時存檔後在群組回覆「已收到」 |

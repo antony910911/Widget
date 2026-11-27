@@ -1,0 +1,23 @@
+[Unit]
+Description=LINE File Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=linebot
+Group=linebot
+WorkingDirectory=/opt/line-file-bot
+ExecStart=/usr/bin/env node --env-file=/opt/line-file-bot/.env src/index.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+# 安全性：只能寫入自己的資料夾
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/line-file-bot/data /opt/line-file-bot/storage
+
+[Install]
+WantedBy=multi-user.target

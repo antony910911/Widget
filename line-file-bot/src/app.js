@@ -15,6 +15,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function loadConfig(env = process.env) {
   return {
     port: Number(env.PORT || 3000),
+    host: env.HOST || undefined,
     channelSecret: env.LINE_CHANNEL_SECRET || '',
     accessToken: env.LINE_CHANNEL_ACCESS_TOKEN || '',
     adminPassword: env.ADMIN_PASSWORD || '',
@@ -70,6 +71,8 @@ export function createApp(config = loadConfig(), deps = {}) {
       pending.add(p);
     }
   });
+
+  app.get('/healthz', (req, res) => res.json({ ok: true }));
 
   // ---------- 管理介面 ----------
   app.use(basicAuth(config.adminPassword));
@@ -206,7 +209,6 @@ export function createApp(config = loadConfig(), deps = {}) {
     res.status(500).json({ error: err.message || '伺服器錯誤' });
   });
 
-  app.get('/healthz', (req, res) => res.json({ ok: true }));
 
   app.locals.ctx = ctx;
   app.locals.idle = () => Promise.all([...pending]);
