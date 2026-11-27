@@ -154,7 +154,8 @@ function createGas({ fetch: fetchHandler, webAppUrl = 'https://script.google.com
   const Session = { getScriptTimeZone: () => 'Asia/Taipei', getEffectiveUser: () => ({ getEmail: () => 'me@gmail.com' }) };
   const ScriptApp = { getService: () => ({ getUrl: () => webAppUrl }) };
   const ContentService = { createTextOutput: s => ({ content: s, setMimeType() { return this; } }), MimeType: { JSON: 'json' } };
-  const HtmlService = { createHtmlOutputFromFile: n => ({ file: n, setTitle() { return this; }, addMetaTag() { return this; } }) };
+  const htmlOut = o => Object.assign(o, { setTitle() { return this; }, addMetaTag() { return this; } });
+  const HtmlService = { createHtmlOutputFromFile: n => htmlOut({ file: n }), createHtmlOutput: h => htmlOut({ html: h }) };
 
   const context = vm.createContext({
     DriveApp, SpreadsheetApp, PropertiesService, CacheService, LockService, UrlFetchApp, Utilities, Session, ScriptApp,

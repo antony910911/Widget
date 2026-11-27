@@ -1,0 +1,192 @@
+<title>LINE 檔案櫃安裝</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* 版面：單欄安裝步驟，左側步驟編號軌道（步驟本身有先後順序），每步一個主要動作 */
+:root {
+  --bg: #f4f6f3; --surface: #ffffff; --ink: #18221c; --muted: #5d6b62; --line: #dde3dc;
+  --accent: #0b8a52; --accent-ink: #076b3f; --accent-soft: #e2f3e9; --warn: #9a5b00; --warn-soft: #fff4dc;
+  --f-body: "Noto Sans TC", -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111613; --surface: #19201b; --ink: #e6ece7; --muted: #9aa89f; --line: #2a332d;
+  --accent: #34c27f; --accent-ink: #5fd99c; --accent-soft: #163024; --warn: #f0be5c; --warn-soft: #33290f; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #19201b; --ink: #e6ece7; --muted: #9aa89f; --line: #2a332d;
+  --accent: #34c27f; --accent-ink: #5fd99c; --accent-soft: #163024; --warn: #f0be5c; --warn-soft: #33290f; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.7 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; }
+.wrap { max-width: 720px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+.mark { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--accent); }
+.mark svg { width: 24px; height: 24px; fill: #fff; }
+h1 { margin: 0; font-size: clamp(26px, 5vw, 34px); font-weight: 900; letter-spacing: .01em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 60ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.facts span { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.progress { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+.bar { flex: 1; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+.step { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 16px; padding: 20px 20px 20px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.step.done { border-color: var(--accent); }
+.num { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line); font-weight: 900; color: var(--muted); }
+.step.done .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+.body { min-width: 0; display: grid; gap: 10px; }
+h2 { margin: 4px 0 0; font-size: 18px; font-weight: 700; }
+.body p, .body ul { margin: 0; }
+.body ul { padding-left: 20px; display: grid; gap: 4px; }
+.ui { font-weight: 700; padding: 0 4px; border-radius: 4px; background: var(--accent-soft); color: var(--accent-ink); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 15px var(--f-body); text-decoration: none; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); }
+.warn { padding: 10px 14px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 14px; }
+.copied { font-size: 13px; color: var(--accent-ink); font-weight: 600; }
+.setting { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; padding: 12px 14px; border-radius: 10px; background: var(--bg); font-size: 14px; }
+.setting dt { color: var(--muted); }
+.setting dd { margin: 0; font-weight: 700; }
+details { border-top: 1px solid var(--line); padding-top: 8px; }
+summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+textarea { width: 100%; height: 180px; margin-top: 8px; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 12px/1.5 var(--f-mono); resize: vertical; }
+.faq { display: grid; gap: 10px; }
+.faq h3 { margin: 0; font-size: 15px; }
+.faq p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.foot { font-size: 12px; color: var(--muted); }
+code { font: 13px var(--f-mono); overflow-wrap: anywhere; }
+@media (max-width: 480px) { .step { grid-template-columns: 1fr; gap: 8px; } .setting { grid-template-columns: 1fr; gap: 0; } .setting dd { margin-bottom: 6px; } }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+    <h1>LINE 檔案櫃安裝</h1>
+    <p class="lead">群組裡有人傳檔案，就自動存到你的 Google 雲端硬碟，依檔名分類、標記是誰傳的，還有網頁可以管理。照下面 4 步做，約 10 分鐘。</p>
+    <div class="facts"><span>免費</span><span>不用租主機</span><span>只需要 Google 帳號</span><span>可改存 OneDrive / Dropbox</span></div>
+  </header>
+
+  <div class="progress"><span id="progressText">完成 0 / 4 步</span><div class="bar"><i id="progressBar"></i></div></div>
+
+  <ol class="steps">
+    <li class="step" data-step="1">
+      <span class="num">1</span>
+      <div class="body">
+        <h2>開一個新的 Apps Script 專案</h2>
+        <p>點下面的按鈕，會在新分頁打開 Google Apps Script，並自動建立一個空白專案（需要登入 Google 帳號）。</p>
+        <div class="row"><a class="btn primary" href="https://script.new" target="_blank" rel="noopener">開新專案 ↗</a></div>
+        <p class="note">打開後可以點左上角「未命名的專案」改名為「LINE 檔案櫃」，方便以後找到。</p>
+        <label class="check"><input type="checkbox" id="c1">已經打開新專案</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="2">
+      <span class="num">2</span>
+      <div class="body">
+        <h2>貼上程式碼</h2>
+        <p>按「複製程式碼」，回到 Apps Script，點編輯區、<b>全部選取</b>（Ctrl+A 或 ⌘+A）後<b>貼上</b>，取代原本的 <code>function myFunction() {}</code>。然後按 💾 儲存。</p>
+        <div class="row">
+          <button class="btn primary" id="copyBtn" type="button">複製程式碼</button>
+          <span class="copied" id="copyMsg" role="status"></span>
+        </div>
+        <p class="note" id="codeInfo"></p>
+        <details>
+          <summary>複製按鈕沒反應？展開手動選取</summary>
+          <textarea id="codeBox" readonly spellcheck="false" aria-label="程式碼"></textarea>
+        </details>
+        <label class="check"><input type="checkbox" id="c2">已經貼上並儲存</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="3">
+      <span class="num">3</span>
+      <div class="body">
+        <h2>部署成網頁</h2>
+        <ul>
+          <li>右上角 <span class="ui">部署</span> → <span class="ui">新增部署作業</span></li>
+          <li>「選取類型」旁的齒輪 → <span class="ui">網頁應用程式</span></li>
+          <li>照下面設定，然後按 <span class="ui">部署</span>：</li>
+        </ul>
+        <dl class="setting">
+          <dt>執行身分</dt><dd>我</dd>
+          <dt>誰可以存取</dt><dd>所有人</dd>
+        </dl>
+        <p class="note">「所有人」是為了讓 LINE 能把檔案送進來。管理介面另外有密碼，別人看不到你的檔案。</p>
+        <ul>
+          <li>按 <span class="ui">授予存取權</span>，選你的 Google 帳號</li>
+          <li>出現「Google 尚未驗證這個應用程式」時，按左下 <span class="ui">進階</span> → <span class="ui">前往「LINE 檔案櫃」（不安全）</span> → <span class="ui">允許</span></li>
+        </ul>
+        <p class="warn">這個警告是因為程式是你自己的，不是上架的 App。它要求的權限是：存檔到你的雲端硬碟、建立一份清單試算表、連到 LINE。</p>
+        <p>最後複製畫面上的<b>網頁應用程式網址</b>（<code>https://script.google.com/macros/s/…/exec</code>）。</p>
+        <label class="check"><input type="checkbox" id="c3">已經拿到網址</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="4">
+      <span class="num">4</span>
+      <div class="body">
+        <h2>打開網址，完成設定</h2>
+        <p>用瀏覽器打開剛剛的網址，<b>建立管理密碼</b>，然後照著設定頁的「開始使用」清單做。每完成一項會自動打勾：</p>
+        <ul>
+          <li>在 LINE Developers 建立 Messaging API channel，把 Channel access token 貼進去</li>
+          <li>把設定頁顯示的 Webhook 網址貼到 LINE 後台，開啟 Use webhook</li>
+          <li>把 Bot 邀請進群組，傳一個檔案試試</li>
+        </ul>
+        <p class="warn">裝好請馬上打開網址建立密碼：在你設定密碼之前，任何拿到網址的人都能先設定。</p>
+        <a class="btn" href="https://developers.line.biz/console/" target="_blank" rel="noopener">開啟 LINE Developers ↗</a>
+        <label class="check"><input type="checkbox" id="c4">設定完成，群組的檔案進來了</label>
+      </div>
+    </li>
+  </ol>
+
+  <section class="faq" aria-label="常見問題">
+    <div><h3>之後有新版本怎麼更新？</h3><p>回到這頁複製新的程式碼，貼上覆蓋、儲存，然後「部署 → 管理部署作業 → ✏️ → 版本選新版本 → 部署」。用「管理部署作業」更新，網址才不會變。</p></div>
+    <div><h3>檔案有大小限制嗎？</h3><p>單一檔案最大約 50 MB（Google 的限制）。超過的會在設定頁的活動紀錄顯示並略過。</p></div>
+    <div><h3>可以存到 iCloud 嗎？</h3><p>不行，Apple 沒有開放 iCloud 雲碟給其他程式寫入。可以在 iPhone 裝 Google Drive 或 OneDrive App，它們會出現在「檔案」App 裡，跟 iCloud 一起看。</p></div>
+    <div><h3>忘記管理密碼？</h3><p>Apps Script 編輯器 → 左側齒輪「專案設定」→「指令碼屬性」→ 刪除 <code>PW_HASH</code>，再打開網址重新建立。</p></div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+const CODE_B64 = "__CODE_B64__";
+const BUILT = "__BUILT__";
+const code = new TextDecoder().decode(Uint8Array.from(atob(CODE_B64), c => c.charCodeAt(0)));
+const box = document.getElementById('codeBox');
+box.value = code;
+document.getElementById('codeInfo').textContent = '程式碼約 ' + Math.round(code.length / 1000) + ' KB、' + code.split('\n').length.toLocaleString() + ' 行，一次全部複製。';
+document.getElementById('foot').textContent = '程式版本：' + BUILT;
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const msg = document.getElementById('copyMsg');
+  const done = () => { msg.textContent = '✓ 已複製，回到 Apps Script 貼上'; };
+  const fallback = () => {
+    const d = box.closest('details'); d.open = true;
+    box.focus(); box.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    msg.textContent = ok ? '✓ 已複製，回到 Apps Script 貼上' : '已幫你選取全部程式碼，請按 Ctrl+C（或 ⌘+C）複製';
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, fallback);
+  else fallback();
+});
+
+const boxes = [1, 2, 3, 4].map(i => document.getElementById('c' + i));
+function load() { try { return JSON.parse(localStorage.getItem('lfb-install') || '{}'); } catch (e) { return {}; } }
+function save(s) { try { localStorage.setItem('lfb-install', JSON.stringify(s)); } catch (e) {} }
+function render() {
+  const n = boxes.filter(b => b.checked).length;
+  boxes.forEach((b, i) => document.querySelector('[data-step="' + (i + 1) + '"]').classList.toggle('done', b.checked));
+  document.getElementById('progressText').textContent = '完成 ' + n + ' / 4 步';
+  document.getElementById('progressBar').style.width = (n * 25) + '%';
+}
+const saved = load();
+boxes.forEach((b, i) => { b.checked = Boolean(saved[i]); b.addEventListener('change', () => { save(boxes.map(x => x.checked)); render(); }); });
+render();
+</script>

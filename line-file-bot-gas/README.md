@@ -5,7 +5,7 @@ LINE 群組裡傳的檔案、圖片、影片、語音，自動存到你的雲端
 
 **免費、不用租主機**：程式跑在你自己的 Google 帳號上，只有群組有人傳東西時才會執行。
 
-👉 **安裝教學：[SETUP.md](SETUP.md)**（全程用瀏覽器，約 15 分鐘）
+👉 **安裝：打開 [`dist/install.html`](dist/install.html) 安裝頁，或看 [SETUP.md](SETUP.md)**（全程用瀏覽器，只要貼一個檔案，約 10 分鐘）
 
 ## 功能
 
@@ -39,7 +39,7 @@ iCloud 雲碟沒有對外的 API，無法支援。
 ```
 src/        伺服器程式（Apps Script，依檔名順序合併成 Code.gs）
 ui/         網頁介面（index.html + styles.css + app.js，合併成 Index.html）
-dist/       產生的檔案，貼到 Apps Script 用
+dist/       產生的檔案：Code.gs（單一檔案安裝，含網頁）、install.html（安裝頁）、Index.html（分開安裝或本機預覽用）
 dev/        本機模擬 Google 服務：gas-mock.js、假的 LINE/OneDrive/Dropbox、預覽伺服器
 test/       測試
 ```

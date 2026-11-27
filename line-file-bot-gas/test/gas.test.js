@@ -186,3 +186,10 @@ test('LINE 金鑰錯誤時，測試連線回報清楚的錯誤', () => {
   assert.equal(r.ok, false);
   assert.match(r.error, /401/);
 });
+
+test('單一檔案安裝：doGet 直接回傳內嵌的網頁', () => {
+  const { gas } = setup();
+  const out = gas.context.doGet({});
+  assert.match(out.html, /<title>|LINE 檔案櫃/);
+  assert.match(out.html, /google\.script\.run/);
+});
