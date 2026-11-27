@@ -10,8 +10,11 @@
     "seed-demo": "node --env-file-if-exists=.env scripts/seed-demo.js",
     "test": "node --test test/*.test.js"
   },
-  "engines": { "node": ">=20.12" },
+  "engines": {
+    "node": ">=20.12"
+  },
   "dependencies": {
-    "express": "4.21.2"
+    "express": "4.21.2",
+    "yazl": "^2.5.1"
   }
 }

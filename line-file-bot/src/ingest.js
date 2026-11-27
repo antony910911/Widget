@@ -101,7 +101,7 @@ export async function handleEvent(ev, ctx) {
   });
   log.info?.(`已存檔：${rec.path}（${uploaderName}）`);
 
-  if (config.replyOnSave && ev.replyToken) {
+  if (ctx.settings?.replyOnSave && ev.replyToken) {
     line.reply(ev.replyToken, `📁 已收到「${originalName}」，歸類到 ${cls.folder}`).catch(e => log.warn?.(e.message));
   }
   return rec;

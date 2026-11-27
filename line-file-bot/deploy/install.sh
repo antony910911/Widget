@@ -5,7 +5,8 @@
 #     sudo bash deploy/install.sh               # 沒有網域：自動使用 <IP>.sslip.io
 #     sudo bash deploy/install.sh bot.example.com
 #
-#   重複執行 = 更新程式；.env、data/、storage/ 都會保留。
+#   重複執行 = 更新程式；設定、資料庫、已下載的檔案都會保留。
+#   LINE 金鑰與管理密碼在安裝後用瀏覽器設定，不需要在這裡輸入。
 set -euo pipefail
 
 APP_DIR=/opt/line-file-bot
@@ -61,20 +62,12 @@ cd "$APP_DIR"
 npm ci --omit=dev --no-audit --no-fund
 
 if [[ ! -f "$APP_DIR/.env" ]]; then
-  step "設定 LINE 金鑰與管理密碼（之後可編輯 $APP_DIR/.env 修改）"
-  read -rp "LINE Channel secret: " SECRET
-  read -rp "LINE Channel access token: " TOKEN
-  read -rsp "管理介面密碼（帳號為 admin）: " PASS; echo
-  while [[ -z "$PASS" ]]; do read -rsp "密碼不可空白，請再輸入一次: " PASS; echo; done
+  # LINE 金鑰與管理密碼都在網頁上設定，這裡只放伺服器設定
   cat > "$APP_DIR/.env" <<ENV
-LINE_CHANNEL_SECRET=$SECRET
-LINE_CHANNEL_ACCESS_TOKEN=$TOKEN
-ADMIN_PASSWORD=$PASS
 PORT=$PORT
 HOST=127.0.0.1
 STORAGE_DIR=$APP_DIR/storage
 DATA_DIR=$APP_DIR/data
-REPLY_ON_SAVE=false
 ENV
 fi
 chmod 600 "$APP_DIR/.env"
@@ -114,8 +107,9 @@ fi
 cat <<DONE
 
 -------------------------------------------------------------
- 管理介面：  https://$DOMAIN        （帳號 admin）
- Webhook ：  https://$DOMAIN/webhook  ← 貼到 LINE Developers Console
+ 用瀏覽器打開：https://$DOMAIN
+ 第一次開啟會請你建立管理密碼，接著在「設定」頁填入 LINE 金鑰，
+ 照著頁面上的「開始使用」步驟做完就可以了。
  檔案位置：  $APP_DIR/storage
  查看紀錄：  journalctl -u line-file-bot -f
 -------------------------------------------------------------

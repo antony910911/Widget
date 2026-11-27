@@ -7,7 +7,21 @@
 3. 自動加上**標籤**：`@上傳者名稱`、分類、關鍵字標籤、`群:群組名稱`
 4. 在**網頁管理介面**中瀏覽：點上傳者就列出這個人傳的所有東西，可切換**清單**或**檔案類型圖示**顯示
 
-## 管理介面功能
+## 完整的網頁工具
+
+部署好之後只要打開網址，**所有設定都在網頁上完成**，不需要改任何檔案：
+
+- 第一次開啟：建立管理密碼（登入頁，之後 30 天內免重新登入）
+- 「設定」頁：貼上 LINE 金鑰、一鍵複製 Webhook 網址、測試連線，並自動檢查 LINE 後台的 Webhook 設定是否正確
+- 「開始使用」清單：每完成一步自動打勾，直到收到第一個檔案
+- 在網頁上編輯分類規則，並可一鍵套用到現有檔案
+- 活動紀錄：即時看到 Bot 收到哪些檔案、有沒有錯誤
+- 下載 ZIP：目前篩選的檔案（例如某個人傳的全部檔案），或完整備份
+
+> 為什麼不能只是一個靜態網頁？LINE 必須把訊息送到一個 24 小時運作的網址，所以程式要放在伺服器上執行。
+> 部署方式請看 **[DEPLOY.md](DEPLOY.md)**（可以全程用雲端平台的網頁操作）。
+
+## 檔案管理功能
 
 - 左側：分類資料夾、上傳者、群組、標籤，點選即可篩選（可多選，條件為「且」）
 - 搜尋：檔名、上傳者、標籤
@@ -39,19 +53,20 @@ storage/
 ```bash
 cd line-file-bot
 npm install
-cp .env.example .env     # 填入 LINE 金鑰與管理密碼
-npm start                # http://localhost:3000
+npm start                # 打開 http://localhost:3000，建立密碼後到「設定」頁填 LINE 金鑰
 ```
 
 先想看看介面長怎樣？執行 `npm run seed-demo` 會建立 18 筆示範檔案。
 
 ## 設定 LINE Bot
 
+網頁「設定」頁的「開始使用」清單會一步一步帶你做，簡要流程：
+
 1. 到 [LINE Developers Console](https://developers.line.biz/console/) 建立 Provider 與 **Messaging API channel**
-2. **Basic settings** 複製 `Channel secret` → `.env` 的 `LINE_CHANNEL_SECRET`
-3. **Messaging API** 分頁最下方發行 `Channel access token (long-lived)` → `LINE_CHANNEL_ACCESS_TOKEN`
+2. **Basic settings** 複製 `Channel secret`，貼到網頁「設定 › LINE 連線」
+3. **Messaging API** 分頁最下方發行 `Channel access token (long-lived)`，貼到同一處，按「儲存並測試」
 4. **Messaging API** 分頁：
-   - Webhook URL 填 `https://你的網域/webhook`，開啟 **Use webhook**，按 Verify
+   - Webhook URL 貼上設定頁顯示的網址，開啟 **Use webhook**，按 Verify
    - **Allow bot to join group chats** 設為「啟用」
    - 到 LINE Official Account Manager 把「自動回應訊息」關掉（不然 Bot 會在群組亂回話）
 5. 用手機掃 QR code 加 Bot 好友，再把它**邀請進群組**
@@ -68,25 +83,27 @@ npm start                # http://localhost:3000
 - VPS（Linode、GCP、AWS Lightsail…）+ Nginx/Caddy 提供 HTTPS
 - Render / Railway / Fly.io：記得掛 Persistent Disk / Volume，並把 `STORAGE_DIR`、`DATA_DIR` 指到那個路徑
 
-對外公開時**一定要設定 `ADMIN_PASSWORD`**（瀏覽器登入帳號填 `admin`，密碼為你設定的值）。
+部署後請**馬上打開網址建立管理密碼**：在密碼建立之前，第一個打開網頁的人可以設定密碼。
 
-## 環境變數
+## 環境變數（可選）
+
+一般不需要設定，LINE 金鑰與密碼在網頁上填即可。網頁上的設定優先於環境變數。
 
 | 變數 | 說明 |
 |---|---|
 | `LINE_CHANNEL_SECRET` | Channel secret，用來驗證 webhook 簽章 |
 | `LINE_CHANNEL_ACCESS_TOKEN` | Channel access token，用來下載檔案、查詢成員名稱 |
-| `ADMIN_PASSWORD` | 管理介面密碼（帳號 admin）。留空 = 不設密碼 |
+| `ADMIN_PASSWORD` | 預設管理密碼（在網頁上改過密碼後就以網頁為準） |
 | `PORT` | 埠號，預設 3000 |
 | `HOST` | 監聽位址，預設全部；放在反向代理後面時設 `127.0.0.1` |
 | `STORAGE_DIR` | 檔案存放位置，預設 `./storage` |
 | `DATA_DIR` | 資料庫位置，預設 `./data`（`db.json`） |
 | `REPLY_ON_SAVE` | `true` 時存檔後在群組回覆「已收到」 |
-| `RULES_PATH` | 分類規則檔，預設 `config/rules.json` |
+| `RULES_PATH` | 預設分類規則檔，預設 `config/rules.json` |
 
 ## 自訂分類規則
 
-編輯 `config/rules.json`（改完重新啟動）：
+在網頁「設定 › 分類規則」編輯即可，立即生效。`config/rules.json` 是預設值（「還原預設規則」會回到這份）：
 
 - `categories`：分類名稱、圖示類型、對應的副檔名
 - `keywordRules`：檔名包含 `keywords` 任一字 → 加上 `tag`；有填 `folder` 就放進該子資料夾
@@ -99,6 +116,7 @@ npm start                # http://localhost:3000
 
 - LINE 只保留訊息內容一段時間，Bot 必須在**收到訊息當下**下載，Bot 加入群組之前的舊檔案抓不到。
 - LINE 群組裡的「相簿」與「記事本」內容不會送到 webhook，只有直接傳在聊天室的檔案 / 圖片 / 影片 / 語音會被收錄。
+- 活動紀錄只存在記憶體中，伺服器重新啟動後會清空（檔案與設定不受影響）。
 - 成員名稱是傳檔當下的 LINE 顯示名稱（快取 24 小時）。若成員改名，新檔案會用新名字的標籤；舊檔可在介面手動修改標籤。
 - 只會下載檔案，不會記錄文字對話內容。
 
@@ -108,7 +126,7 @@ npm start                # http://localhost:3000
 npm test
 ```
 
-測試會啟動一個假的 LINE API，驗證簽章檢查、下載、分類、標籤、依上傳者篩選、改分類搬檔與刪除。
+測試會啟動一個假的 LINE API，驗證首次建立密碼與登入、在網頁設定金鑰、簽章檢查、下載、分類、標籤、依上傳者篩選、ZIP 匯出、改規則重新分類、搬檔與刪除。
 
 ## 程式結構
 

@@ -6,7 +6,7 @@ set -euo pipefail
 OUT="${1:-/root/backups}"
 mkdir -p "$OUT"
 FILE="$OUT/line-file-bot-$(date +%Y%m%d-%H%M%S).tar.gz"
-tar -czf "$FILE" -C /opt/line-file-bot data storage .env
+tar -czf "$FILE" -C /opt/line-file-bot data storage
 echo "已備份到 $FILE"
 # 只保留最近 14 份
 ls -1t "$OUT"/line-file-bot-*.tar.gz | tail -n +15 | xargs -r rm -f

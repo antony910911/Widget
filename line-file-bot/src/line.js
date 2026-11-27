@@ -13,12 +13,15 @@ export function verifySignature(rawBody, signature, secret) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/** token 可以是字串，或回傳字串的函式（金鑰在網頁上修改後不必重新啟動） */
 export function createLineClient({ token, apiBase = 'https://api.line.me', dataBase = 'https://api-data.line.me' }) {
-  const auth = { Authorization: `Bearer ${token}` };
+  const getToken = typeof token === 'function' ? token : () => token;
+  const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
 
   async function getJson(url) {
-    const r = await fetch(url, { headers: auth });
-    if (!r.ok) throw new Error(`LINE API ${r.status} ${url}`);
+    const r = await fetch(url, { headers: authHeaders() });
+    if (r.status === 401) throw new Error('LINE 拒絕存取（401）：Channel access token 錯誤或已過期');
+    if (!r.ok) throw new Error(`LINE API 錯誤 ${r.status}`);
     return r.json();
   }
 
@@ -28,7 +31,7 @@ export function createLineClient({ token, apiBase = 'https://api.line.me', dataB
       const url = `${dataBase}/v2/bot/message/${encodeURIComponent(messageId)}/content`;
       // 影片 / 音訊剛上傳時 LINE 可能還在轉檔，會回 202，稍等重試
       for (let attempt = 0; attempt < 10; attempt++) {
-        const r = await fetch(url, { headers: auth });
+        const r = await fetch(url, { headers: authHeaders() });
         if (r.status === 202) { await sleep(1500 * (attempt + 1)); continue; }
         if (!r.ok) throw new Error(`下載內容失敗 ${r.status}（訊息 ${messageId}）`);
         await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(destPath));
@@ -59,10 +62,20 @@ export function createLineClient({ token, apiBase = 'https://api.line.me', dataB
       return j.groupName;
     },
 
+    /** 測試金鑰用：取得 Bot 基本資料 */
+    async getBotInfo() {
+      return getJson(`${apiBase}/v2/bot/info`); // { displayName, basicId, pictureUrl, ... }
+    },
+
+    /** 取得 LINE 後台目前設定的 webhook 網址與是否啟用 */
+    async getWebhookEndpoint() {
+      return getJson(`${apiBase}/v2/bot/channel/webhook/endpoint`); // { endpoint, active }
+    },
+
     async reply(replyToken, text) {
       const r = await fetch(`${apiBase}/v2/bot/message/reply`, {
         method: 'POST',
-        headers: { ...auth, 'Content-Type': 'application/json' },
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ replyToken, messages: [{ type: 'text', text }] }),
       });
       if (!r.ok) throw new Error(`回覆失敗 ${r.status}`);

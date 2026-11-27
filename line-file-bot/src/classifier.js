@@ -40,13 +40,12 @@ export function sanitizeFolder(name) {
 }
 
 export class Classifier {
-  constructor(rulesPath) {
-    this.rulesPath = rulesPath;
-    this.reload();
+  /** @param {object|string} rules 規則物件，或 rules.json 的路徑 */
+  constructor(rules) {
+    this.setRules(typeof rules === 'string' ? JSON.parse(fs.readFileSync(rules, 'utf8')) : rules);
   }
 
-  reload() {
-    const rules = JSON.parse(fs.readFileSync(this.rulesPath, 'utf8'));
+  setRules(rules) {
     this.categories = rules.categories || [];
     this.fallback = rules.fallbackCategory || { name: '其他', icon: 'file' };
     this.keywordRules = rules.keywordRules || [];

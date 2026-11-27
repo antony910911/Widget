@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登入 · LINE 檔案櫃</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-page">
+<main class="auth-card">
+  <div class="brand auth-brand">
+    <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+    <span>LINE 檔案櫃</span>
+  </div>
+  <form id="form" autocomplete="on">
+    <h1 id="title">登入</h1>
+    <p id="lead" class="muted">輸入管理密碼</p>
+    <label class="field"><span>密碼</span><input id="pw" type="password" autocomplete="current-password" required></label>
+    <label class="field" id="pw2Wrap" hidden><span>再輸入一次</span><input id="pw2" type="password" autocomplete="new-password"></label>
+    <p class="form-error" id="err" role="alert"></p>
+    <button class="btn primary block" id="submit">登入</button>
+  </form>
+</main>
+<script src="common.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

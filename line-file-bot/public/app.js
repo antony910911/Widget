@@ -1,6 +1,5 @@
 'use strict';
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// $、esc、api、toast 定義在 common.js
 
 const state = {
   q: '', category: '', tags: new Set(), sort: 'newest',
@@ -48,13 +47,6 @@ const fmtSize = b => { if (!b) return '0 B'; const u = ['B', 'KB', 'MB', 'GB', '
 const fmtDate = s => { const d = new Date(s); return d.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }); };
 const fmtShort = s => { const d = new Date(s); return d.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' }); };
 
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200); }
-
-async function api(url, opts) {
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `錯誤 ${r.status}`);
-  return r.json();
-}
 
 // ---------- 載入 ----------
 async function loadFacets() { state.facets = await api('/api/facets'); renderSidebar(); }
@@ -63,6 +55,8 @@ async function loadFiles() {
   for (const t of state.tags) p.append('tag', t);
   const { files } = await api('/api/files?' + p);
   state.files = files;
+  $('#zipBtn').href = '/api/export.zip?' + p;
+  $('#zipBtn').hidden = !files.length;
   renderFiles(); renderFilterbar();
 }
 const refresh = () => Promise.all([loadFacets(), loadFiles()]);
@@ -98,7 +92,7 @@ function renderFilterbar() {
   fb.hidden = !items.length;
   fb.innerHTML = `<span class="label">篩選：</span>${items.join('')}<button class="clear" data-clear>清除全部</button>`;
   const who = [...state.tags].filter(t => t.startsWith('@')).map(t => t.slice(1));
-  $('#resultMeta').textContent = (who.length === 1 ? `${who[0]} 上傳的檔案 · ` : '') + `共 ${state.files.length} 個檔案` + (state.q ? `（搜尋「${state.q}」）` : '');
+  $('#resultText').textContent = (who.length === 1 ? `${who[0]} 上傳的檔案 · ` : '') + `共 ${state.files.length} 個檔案` + (state.q ? `（搜尋「${state.q}」）` : '');
 }
 $('#filterbar').addEventListener('click', e => {
   const chip = e.target.closest('[data-rm-cat],[data-rm-tag],[data-clear]'); if (!chip) return;
@@ -213,7 +207,7 @@ function renderTagEditor() {
 
 async function save(patch, msg, refocus) {
   try {
-    const updated = await api(`/api/files/${state.current.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    const updated = await api(`/api/files/${state.current.id}`, { method: 'PATCH', body: patch });
     const i = state.files.findIndex(x => x.id === updated.id);
     if (i >= 0) state.files[i] = updated;
     state.current = updated;
@@ -259,3 +253,6 @@ addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('#dropzone'
 // 每 30 秒自動更新，群組裡有新檔案就會出現
 setInterval(() => { if (!document.hidden && !state.current) refresh(); }, 30000);
 refresh().catch(e => toast(e.message));
+
+// 還沒設定 LINE 金鑰時，提示到設定頁
+api('/api/settings').then(s => { if (!s.channelSecretSet || !s.accessTokenSet) $('#setupBanner').hidden = false; }).catch(() => {});

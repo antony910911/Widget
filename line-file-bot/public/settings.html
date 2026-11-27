@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>設定 · LINE 檔案櫃</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+    <span class="brand-name">LINE 檔案櫃</span>
+  </a>
+  <nav class="tabs">
+    <a href="/">檔案</a>
+    <a href="/settings.html" class="on">設定</a>
+  </nav>
+  <div class="top-actions"><button class="btn" data-logout>登出</button></div>
+</header>
+
+<main class="settings">
+  <section class="box" id="checklistCard">
+    <h2>開始使用</h2>
+    <p class="muted">照著下面的步驟做，每完成一步就會自動打勾。</p>
+    <ol class="checklist" id="checklist"></ol>
+  </section>
+
+  <section class="box" id="line">
+    <h2>LINE 連線</h2>
+    <div class="field">
+      <span>Webhook 網址 <small class="muted">— 貼到 LINE Developers Console › Messaging API › Webhook URL</small></span>
+      <div class="copy-row"><input id="webhookUrl" readonly><button class="btn" id="copyWebhook">複製</button></div>
+      <p class="warn" id="httpsWarn" hidden>⚠️ 目前不是 HTTPS 網址，LINE 不接受。請用部署後的 https 網址開啟這個頁面。</p>
+    </div>
+    <label class="field">
+      <span>Channel secret <small class="muted">— Basic settings 分頁</small></span>
+      <input id="secret" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="field">
+      <span>Channel access token <small class="muted">— Messaging API 分頁最下方，按 Issue 產生</small></span>
+      <textarea id="token" rows="3" autocomplete="off" spellcheck="false"></textarea>
+    </label>
+    <div class="row-actions">
+      <button class="btn primary" id="saveLine">儲存並測試</button>
+      <button class="btn" id="testLine">只測試連線</button>
+      <a class="btn ghost" href="https://developers.line.biz/console/" target="_blank" rel="noopener">開啟 LINE Developers ↗</a>
+    </div>
+    <div class="test-result" id="testResult" hidden></div>
+    <label class="switch">
+      <input type="checkbox" id="replyOnSave">
+      <span>收到檔案後在群組回覆「📁 已收到…」</span>
+    </label>
+  </section>
+
+  <section class="box" id="rules">
+    <h2>分類規則</h2>
+    <p class="muted">依副檔名決定放進哪個資料夾。副檔名用逗號或空白分開。</p>
+    <div class="rules-table" id="catTable"></div>
+    <button class="btn small" id="addCat">＋ 新增分類</button>
+    <label class="field inline"><span>其他檔案放到</span><input id="fallbackName" maxlength="30"></label>
+
+    <h3>檔名關鍵字</h3>
+    <p class="muted">檔名包含任一個關鍵字，就自動加上標籤；有填子資料夾的話，會放進「分類/子資料夾」。</p>
+    <div class="rules-table" id="kwTable"></div>
+    <button class="btn small" id="addKw">＋ 新增關鍵字規則</button>
+
+    <div class="row-actions sticky-actions">
+      <button class="btn primary" id="saveRules">儲存規則</button>
+      <button class="btn" id="reclassify">依新規則重新整理現有檔案</button>
+      <button class="btn ghost" id="resetRules">還原預設規則</button>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2>備份</h2>
+    <p class="muted">下載全部檔案與資料庫（ZIP）。建議定期下載一份存到自己電腦。</p>
+    <a class="btn" href="/api/backup.zip"><svg viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>下載完整備份</a>
+  </section>
+
+  <section class="box">
+    <h2>變更管理密碼</h2>
+    <form id="pwForm" class="pw-form">
+      <label class="field"><span>目前密碼</span><input type="password" id="pwCur" autocomplete="current-password" required></label>
+      <label class="field"><span>新密碼（至少 6 個字）</span><input type="password" id="pwNew" autocomplete="new-password" minlength="6" required></label>
+      <button class="btn">變更密碼</button>
+    </form>
+  </section>
+
+  <section class="box">
+    <h2>活動紀錄 <small class="muted" id="statusLine"></small></h2>
+    <ul class="activity" id="activity"></ul>
+  </section>
+</main>
+<script src="common.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>

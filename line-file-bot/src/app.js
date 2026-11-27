@@ -4,11 +4,14 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import yazl from 'yazl';
 import { verifySignature, createLineClient } from './line.js';
 import { Store } from './store.js';
 import { Classifier, sanitizeFilename, getExt } from './classifier.js';
 import { handleEvent, uploaderTag } from './ingest.js';
 import { resolveInside, placeFile, moveFile, uniqueName, removeEmptyParents } from './files.js';
+import { Settings } from './settings.js';
+import { isLoggedIn, setSession, clearSession, createLoginLimiter } from './auth.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -16,72 +19,142 @@ export function loadConfig(env = process.env) {
   return {
     port: Number(env.PORT || 3000),
     host: env.HOST || undefined,
+    // 以下三項也可以直接在網頁「設定」頁填寫，網頁上的設定優先
     channelSecret: env.LINE_CHANNEL_SECRET || '',
     accessToken: env.LINE_CHANNEL_ACCESS_TOKEN || '',
     adminPassword: env.ADMIN_PASSWORD || '',
     storageDir: path.resolve(env.STORAGE_DIR || path.join(ROOT, 'storage')),
     dataDir: path.resolve(env.DATA_DIR || path.join(ROOT, 'data')),
     rulesPath: path.resolve(env.RULES_PATH || path.join(ROOT, 'config', 'rules.json')),
-    replyOnSave: /^(1|true|yes)$/i.test(env.REPLY_ON_SAVE || ''),
+    replyOnSave: env.REPLY_ON_SAVE ? /^(1|true|yes)$/i.test(env.REPLY_ON_SAVE) : undefined,
     lineApiBase: env.LINE_API_BASE || 'https://api.line.me',
     lineDataBase: env.LINE_DATA_API_BASE || 'https://api-data.line.me',
   };
 }
 
-function basicAuth(password) {
-  return (req, res, next) => {
-    if (!password) return next();
-    const [type, b64] = (req.headers.authorization || '').split(' ');
-    if (type === 'Basic' && b64) {
-      const [, pass] = Buffer.from(b64, 'base64').toString().split(/:(.*)/s);
-      const a = crypto.createHash('sha256').update(pass || '').digest();
-      const b = crypto.createHash('sha256').update(password).digest();
-      if (crypto.timingSafeEqual(a, b)) return next();
-    }
-    res.set('WWW-Authenticate', 'Basic realm="LINE File Bot", charset="UTF-8"').status(401).send('需要登入');
-  };
-}
-
 const h = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+/** 給「活動紀錄」用：保留最近 200 筆，同時照常印到主控台 */
+function createActivityLog(base) {
+  const entries = [];
+  const rec = level => (...args) => {
+    const msg = args.map(a => (a instanceof Error ? a.message : typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    entries.unshift({ at: new Date().toISOString(), level, msg });
+    if (entries.length > 200) entries.pop();
+    base[level]?.(...args);
+  };
+  return { entries, info: rec('info'), warn: rec('warn'), error: rec('error') };
+}
 
 export function createApp(config = loadConfig(), deps = {}) {
   fs.mkdirSync(config.storageDir, { recursive: true });
   const store = deps.store || new Store(config.dataDir);
-  const classifier = deps.classifier || new Classifier(config.rulesPath);
-  const line = deps.line || createLineClient({ token: config.accessToken, apiBase: config.lineApiBase, dataBase: config.lineDataBase });
-  const log = deps.log || console;
-  const ctx = { line, store, classifier, config, log };
+  const settings = deps.settings || new Settings(config.dataDir, { env: config, defaultRulesPath: config.rulesPath });
+  const classifier = deps.classifier || new Classifier(settings.rules);
+  const line = deps.line || createLineClient({ token: () => settings.accessToken, apiBase: config.lineApiBase, dataBase: config.lineDataBase });
+  const log = createActivityLog(deps.log || console);
+  const ctx = { line, store, classifier, config, settings, log };
   const pending = new Set();
+  const limiter = createLoginLimiter();
+  store.data.status ||= { groups: {} };
+  const status = store.data.status;
 
   const app = express();
   app.disable('x-powered-by');
+  // 部署在 Caddy / Nginx / 雲端平台後面時，才能拿到使用者真正的 IP 與 https
+  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 
-  // ---------- LINE webhook（不經過密碼驗證，靠簽章驗證）----------
+  // ---------- LINE webhook（不需要登入，靠簽章驗證）----------
   app.post('/webhook', express.raw({ type: '*/*', limit: '5mb' }), (req, res) => {
-    if (!verifySignature(req.body, req.get('x-line-signature'), config.channelSecret)) {
+    if (!settings.channelSecret) {
+      log.warn('收到 LINE webhook，但尚未設定 Channel secret（請到「設定」頁填寫）');
+      return res.status(401).send('channel secret not configured');
+    }
+    if (!verifySignature(req.body, req.get('x-line-signature'), settings.channelSecret)) {
+      log.warn('收到簽章錯誤的 webhook：Channel secret 可能填錯了');
       return res.status(401).send('bad signature');
     }
     let body;
     try { body = JSON.parse(req.body.toString('utf8')); } catch { return res.status(400).send('bad json'); }
     res.status(200).send('ok'); // 先回 200，LINE 要求快速回應
+    status.lastWebhookAt = new Date().toISOString();
+    if (!body.events?.length) log.info('收到 LINE 的 Webhook 驗證請求（Verify）✔');
     for (const ev of body.events || []) {
-      const p = handleEvent(ev, ctx)
-        .catch(e => log.error?.('處理事件失敗：', e.message))
+      const p = processEvent(ev)
+        .catch(e => log.error('處理事件失敗：', e.message))
         .finally(() => pending.delete(p));
       pending.add(p);
     }
+    store.save();
   });
+
+  async function processEvent(ev) {
+    const gid = ev.source?.groupId;
+    if (gid && !status.groups[gid]) {
+      let name = '群組';
+      try { name = await line.getGroupName(gid); } catch {}
+      status.groups[gid] = { name, since: new Date().toISOString() };
+      if (ev.type !== 'join') log.info(`偵測到群組「${name}」`);
+    }
+    if (ev.type === 'join' && gid) log.info(`Bot 已加入群組「${status.groups[gid].name}」`);
+    if (ev.type === 'leave' && gid) { log.info(`Bot 已離開群組「${status.groups[gid]?.name || gid}」`); delete status.groups[gid]; }
+    const rec = await handleEvent(ev, ctx);
+    if (rec) {
+      status.lastFileAt = rec.createdAt;
+      log.info(`已收下「${rec.originalName}」→ ${rec.folder}（${rec.uploader.name}）`);
+    }
+    await store.save();
+  }
 
   app.get('/healthz', (req, res) => res.json({ ok: true }));
 
-  // ---------- 管理介面 ----------
-  app.use(basicAuth(config.adminPassword));
+  // ---------- 登入 ----------
   app.use(express.json());
+  const loggedIn = req => isLoggedIn(req, settings);
+
+  app.get('/api/session', (req, res) => res.json({ configured: settings.passwordConfigured, loggedIn: loggedIn(req) }));
+
+  // 第一次使用：建立管理密碼（只有在還沒設定密碼時可以呼叫）
+  app.post('/api/setup', h(async (req, res) => {
+    if (settings.passwordConfigured) return res.status(403).json({ error: '已經設定過密碼了' });
+    const pw = String(req.body.password || '');
+    if (pw.length < 6) return res.status(400).json({ error: '密碼至少 6 個字' });
+    await settings.setPassword(pw);
+    setSession(req, res, settings);
+    log.info('已建立管理密碼');
+    res.json({ ok: true });
+  }));
+
+  app.post('/api/login', (req, res) => {
+    if (limiter.blocked(req.ip)) return res.status(429).json({ error: '嘗試太多次，請 15 分鐘後再試' });
+    if (!settings.checkPassword(req.body.password)) {
+      limiter.fail(req.ip);
+      return res.status(401).json({ error: '密碼錯誤' });
+    }
+    limiter.ok(req.ip);
+    setSession(req, res, settings);
+    res.json({ ok: true });
+  });
+
+  app.post('/api/logout', (req, res) => { clearSession(res); res.json({ ok: true }); });
+
+  // 未登入：網頁導向登入頁，API 回 401
+  const PUBLIC_FILES = /^\/(login\.html|style\.css|login\.js|common\.js|favicon\.svg)$/;
+  app.use((req, res, next) => {
+    if (PUBLIC_FILES.test(req.path) || loggedIn(req)) return next();
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: '請先登入' });
+    res.redirect('/login.html');
+  });
+  // 防 CSRF：修改資料的請求必須帶自訂標頭（跨網站的表單送不出這個標頭）
+  app.use('/api', (req, res, next) => {
+    if (req.method !== 'GET' && req.get('x-requested-with') !== 'fetch') return res.status(403).json({ error: '請求被拒絕' });
+    next();
+  });
   app.use(express.static(path.join(ROOT, 'public')));
 
   const view = f => ({ ...f, icon: classifier.iconFor(f.category) });
 
-  app.get('/api/files', (req, res) => {
+  function query(req) {
     const { q = '', category = '', sort = 'newest' } = req.query;
     const tags = [].concat(req.query.tag || []).filter(Boolean);
     const needle = String(q).toLowerCase();
@@ -95,9 +168,42 @@ export function createApp(config = loadConfig(), deps = {}) {
       name: (a, b) => a.originalName.localeCompare(b.originalName, 'zh-Hant'),
       size: (a, b) => b.size - a.size,
     }[sort] || (() => 0);
-    list = [...list].sort(cmp);
+    return [...list].sort(cmp);
+  }
+
+  app.get('/api/files', (req, res) => {
+    const list = query(req);
     res.json({ files: list.map(view), total: list.length });
   });
+
+  // 把目前篩選結果打包成 ZIP 下載（例如「王小明上傳的全部檔案」）
+  app.get('/api/export.zip', (req, res) => {
+    const list = query(req);
+    const zip = new yazl.ZipFile();
+    for (const f of list) {
+      const abs = resolveInside(config.storageDir, f.path);
+      if (fs.existsSync(abs)) zip.addFile(abs, f.path, { compress: !/^(jpe?g|png|gif|webp|heic|mp4|mov|m4a|mp3|zip|rar|7z|gz)$/.test(f.ext) });
+    }
+    const who = [].concat(req.query.tag || []).find(t => t.startsWith('@'));
+    const name = `LINE檔案${who ? '_' + who.slice(1) : ''}${req.query.category ? '_' + req.query.category : ''}_${new Date().toISOString().slice(0, 10)}.zip`;
+    res.attachment(sanitizeFilename(name));
+    zip.outputStream.pipe(res);
+    zip.end();
+  });
+
+  // 完整備份：所有檔案 + 資料庫（可用來搬家）
+  app.get('/api/backup.zip', h(async (req, res) => {
+    await store.save();
+    const zip = new yazl.ZipFile();
+    zip.addFile(store.file, 'db.json');
+    for (const f of store.all()) {
+      const abs = resolveInside(config.storageDir, f.path);
+      if (fs.existsSync(abs)) zip.addFile(abs, 'storage/' + f.path, { compress: false });
+    }
+    res.attachment(`line-file-bot-backup_${new Date().toISOString().slice(0, 10)}.zip`);
+    zip.outputStream.pipe(res);
+    zip.end();
+  }));
 
   app.get('/api/facets', (req, res) => {
     const files = store.all();
@@ -204,8 +310,81 @@ export function createApp(config = loadConfig(), deps = {}) {
     res.json(view(rec));
   }));
 
+  // ---------- 設定 ----------
+  const mask = v => (v ? '•'.repeat(8) + v.slice(-4) : '');
+  app.get('/api/settings', (req, res) => {
+    res.json({
+      channelSecretSet: Boolean(settings.channelSecret), channelSecretHint: mask(settings.channelSecret),
+      accessTokenSet: Boolean(settings.accessToken), accessTokenHint: mask(settings.accessToken),
+      replyOnSave: settings.replyOnSave,
+      rules: settings.rules,
+      customRules: Boolean(settings.data.rules),
+    });
+  });
+
+  app.put('/api/settings', h(async (req, res) => {
+    const { channelSecret, accessToken, replyOnSave, rules } = req.body;
+    try {
+      await settings.update({ channelSecret, accessToken, replyOnSave, rules });
+    } catch (e) { return res.status(400).json({ error: e.message }); }
+    if (rules !== undefined) { classifier.setRules(settings.rules); log.info('已更新分類規則'); }
+    if (channelSecret !== undefined || accessToken !== undefined) log.info('已更新 LINE 金鑰');
+    res.json({ ok: true });
+  }));
+
+  app.post('/api/settings/password', h(async (req, res) => {
+    if (!settings.checkPassword(req.body.current)) return res.status(400).json({ error: '目前的密碼不正確' });
+    if (String(req.body.next || '').length < 6) return res.status(400).json({ error: '新密碼至少 6 個字' });
+    await settings.setPassword(req.body.next);
+    setSession(req, res, settings); // 舊的登入全部失效，只保留目前這個
+    log.info('已變更管理密碼');
+    res.json({ ok: true });
+  }));
+
+  // 測試 LINE 金鑰，並檢查 LINE 後台的 webhook 網址是否正確
+  app.post('/api/settings/test-line', h(async (req, res) => {
+    if (!settings.accessToken) return res.json({ ok: false, error: '尚未填寫 Channel access token' });
+    try {
+      const bot = await line.getBotInfo();
+      let webhook = null;
+      try { webhook = await line.getWebhookEndpoint(); } catch {}
+      res.json({ ok: true, bot: { name: bot.displayName, basicId: bot.basicId, pictureUrl: bot.pictureUrl }, webhook });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
+  }));
+
+  // 依目前規則重新分類全部檔案（會搬移資料夾，手動加的標籤會保留）
+  app.post('/api/reclassify', h(async (req, res) => {
+    let moved = 0;
+    // 舊規則和新規則的分類名稱都要從標籤裡拿掉
+    const known = new Set([...classifier.categoryList().map(c => c.name), ...store.all().map(f => f.category)]);
+    for (const f of store.all()) {
+      const cls = classifier.classify(f.originalName, f.lineType);
+      if (cls.folder === f.folder) continue;
+      const from = resolveInside(config.storageDir, f.path);
+      if (!fs.existsSync(from)) continue;
+      const dir = resolveInside(config.storageDir, cls.folder);
+      await fsp.mkdir(dir, { recursive: true });
+      const name = uniqueName(dir, f.storedName);
+      await moveFile(from, path.join(dir, name));
+      await removeEmptyParents(config.storageDir, path.dirname(from));
+      const tags = f.tags.filter(t => t !== f.category && !known.has(t));
+      f.tags = [...new Set([...tags, cls.category, ...cls.tags])];
+      Object.assign(f, { category: cls.category, folder: cls.folder, storedName: name, path: `${cls.folder}/${name}` });
+      moved++;
+    }
+    await store.save();
+    log.info(`重新分類完成，搬移了 ${moved} 個檔案`);
+    res.json({ moved });
+  }));
+
+  app.get('/api/activity', (req, res) => {
+    res.json({ entries: log.entries.slice(0, 100), status, totalFiles: store.all().length });
+  });
+
   app.use((err, req, res, next) => {
-    log.error?.(err);
+    log.error(err);
     res.status(500).json({ error: err.message || '伺服器錯誤' });
   });
 
